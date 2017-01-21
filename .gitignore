@@ -1,0 +1,8 @@
+store/bin
+query/bin
+query/.buildpath
+query/.classpath
+query/.project
+store/.buildpath
+store/.classpath
+store/.project
