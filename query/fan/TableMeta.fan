@@ -13,6 +13,10 @@ class Table {
 
   Int count := 0
   Int root := -1
+  
+  new make(|This| f) {
+    f(this)
+  }
 
   new read(InStream in) {
     name = in.readUtf
@@ -50,8 +54,17 @@ class Table {
 
 class TableMeta {
   Str:Table map := [:]
+  Int version := 0
+  Int flag := 0
+  
+  @Operator
+  Table? get(Str name) {
+    map[name]
+  }
 
   Void read(InStream in) {
+    version = in.readS4
+    flag = in.readS4
     tsize := in.readS4
     tsize.times {
       t := Table.read(in)
@@ -60,6 +73,8 @@ class TableMeta {
   }
 
   Void write(OutStream out) {
+    out.writeI4(version)
+    out.writeI4(flag)
     out.writeI4(map.size)
     map.each {
       it.write(out)

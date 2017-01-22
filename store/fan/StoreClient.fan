@@ -40,8 +40,10 @@ const class StoreClient {
      return block.version
   }
 
-  private Block doRead(Int blockId) {
-    Block b := store->send_read(Page.invalidId, blockId)->get
+  private Block? doRead(Int blockId) {
+    Block? b := store->send_read(Page.invalidId, blockId)->get
+    if (b == null) return null
+    //echo("$b.buf")
     return b.dupWith { it.buf = compress.uncompress(it.buf.in) }
   }
 
@@ -49,7 +51,10 @@ const class StoreClient {
     Block? block := cache.getCache(blockId)
     if (block == null) {
       block = doRead(blockId)
-      cache.setCache(block.id, block)
+      cache.setCache(blockId, block)
+      if (block == null) {
+        return null
+      }
     }
 
     return getVersionBlcok(transId, block)
@@ -77,24 +82,21 @@ const class StoreClient {
     store->send_delete(transId, blockId)
   }
 
-  Int begin(Int? transId := null) {
-    transId = cache.beginTrans(transId)
-    store->send_begin(transId)
+  Int transact(Int? transId, TransState state) {
+    switch (state) {
+      case TransState.begin:
+        transId = cache.beginTrans(transId)
+      case TransState.commit:
+      case TransState.abort:
+        cache.endTrans(transId)
+    }
+    store->send_transact(transId, state)
     return transId
   }
 
-  Void rollback(Int transId) {
-    cache.endTrans(transId)
-    store->send_rollback(transId)
+  Int begin(Int? transId := null) {
+    return transact(transId, TransState.begin)
   }
 
-  Void commit(Int transId) {
-    cache.endTrans(transId)
-    store->send_commit(transId)->get
-  }
-
-  Bool prepare(Int transId) {
-    store->send_prepare(transId)->get
-  }
 }
 

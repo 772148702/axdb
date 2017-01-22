@@ -2,28 +2,32 @@
 internal class MyTree : BTree {
   private Buf[] list := Buf[,]
 
-  override Buf readNode(Int id) {
+  new make() : super.make() {}
+
+  override Buf readNode(Int transId, Int id) {
     list[id]
   }
-  override Int createNode() {
+  override Int createNode(Int transId) {
     s := list.size
     list.add(Buf())
     return s
   }
-  override Void updateBuf(Int id, Buf buf) {
+  override Void updateBuf(Int transId, Int id, Buf buf) {
     list[id] = buf
     //echo("updateBuf: $id, $buf.toHex")
   }
 }
 
 class BTreeTest : Test, BufUtil {
+  static const Int transId := 0
 
   private static Void insert(MyTree tree, Int i) {
-    tree.insert(strToBuf("key$i"), i, strToBuf("value$i"))
+    tree.insert(transId, strToBuf("key$i"), i, strToBuf("value$i"))
   }
 
   static Void test() {
-    tree := MyTree() { maxKeySize = 4 }
+    tree := MyTree { maxKeySize = 4 }
+    tree.initRoot(transId)
 
     list := Int[,]
     100.times {
@@ -40,15 +44,15 @@ class BTreeTest : Test, BufUtil {
 
     //tree.insert(strToBuf("key2"), 2, strToBuf("v2"))
     //tree.insert(strToBuf("key2"), 2, strToBuf("val2"), true)
-    tree.dump
+    tree.dump(transId)
     Env.cur.out.print("scan:")
-    tree.scan |i,v| {
+    tree.scan(transId) |i,v| {
       Env.cur.out.print("$i,")
     }
     Env.cur.out.print("\n")
 
     echo("==========")
-    r := tree.search(strToBuf("key2"))
+    r := tree.search(transId, strToBuf("key2"))
     echo("$r")
   }
 }

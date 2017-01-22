@@ -105,25 +105,22 @@ class BlockStore {
     pageStore.deletePage(transId, page, last)
   }
 
-  Void begin(Int? transId) {
-    pageStore.begin(transId)
+  Void transact(Int transId, TransState state) {
+    switch (state) {
+      case TransState.begin:
+        pageStore.begin(transId)
+      case TransState.prepare:
+        pageStore.prepare(transId)
+      case TransState.commit:
+        pageStore.commit(transId)
+      case TransState.abort:
+        pageStore.rollback(transId)
+    }
   }
 
-  Void rollback(Int transId) {
-    pageStore.rollback(transId)
-  }
-
-  Void commit(Int transId) {
-    pageStore.commit(transId)
-  }
-
-  Bool prepare(Int transId) {
-    pageStore.prepare(transId)
-  }
-
-  Void sync() {
-    pageStore.flush
-  }
+//  Void sync() {
+//    pageStore.flush
+//  }
 
   Void close() {
     pageStore.close

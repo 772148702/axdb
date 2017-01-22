@@ -21,7 +21,7 @@ class StoreClientTest : Test {
 
     //echo("$block.id, $block2.id")
 
-    store.commit(transId)
+    store.transact(transId, TransState.commit)
     store.close
   }
 
@@ -41,12 +41,12 @@ class StoreClientTest : Test {
     block2 := store.read(transId, 1)
     str2 := block2.buf.in.readUtf
     verifyEq(str2, "World")
-    store.commit(transId)
+    store.transact(transId, TransState.commit)
 
     transId = store.begin
     store.reqWrite(transId, block2.id)
     store.delete(transId, block2.id)
-    store.rollback(transId)
+    store.transact(transId, TransState.abort)
 
     store.close
   }
@@ -59,7 +59,7 @@ class StoreClientTest : Test {
     str := block.buf.in.readUtf
     verifyEq(str, expected)
 
-    store.commit(transId)
+    store.transact(transId, TransState.commit)
     store.close
   }
 

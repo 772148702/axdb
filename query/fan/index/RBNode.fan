@@ -172,7 +172,7 @@ const class RBNode : BufUtil {
     return b
   }
 
-  Void dump(BTree tree, Int level := 0) {
+  Void dump(Int transId, BTree tree, Int level := 0) {
     level.times {
       Env.cur.out.print("  ")
     }
@@ -195,8 +195,8 @@ const class RBNode : BufUtil {
 
     if (!leaf) {
       list.each {
-        node := tree.getNode(it)
-        node.dump(tree, level+1)
+        node := tree.getNode(transId, it)
+        node.dump(transId, tree, level+1)
       }
     }
   }

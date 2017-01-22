@@ -5,14 +5,6 @@
 //   2017-1-21  Jed Young  Creation
 //
 
-**
-** transaction session
-**
-class Session {
-  Int firstFree := Page.invalidId
-  Int lastFree := Page.invalidId
-  Int lastTime := 0
-}
 
 enum class TransState {
   begin,
@@ -20,6 +12,18 @@ enum class TransState {
   commit,
   abort
 }
+
+**
+** transaction session
+**
+class Session {
+  Int firstFree := Page.invalidId
+  Int lastFree := Page.invalidId
+  Int lastTime := 0
+  
+  TransState state := TransState.begin
+}
+
 
 **
 ** page store with transaction
@@ -133,6 +137,8 @@ class TransPageMgr : LogPageMgr {
     recover.undo(transId)
 
     logger.abort(transId)
+    ses := sessionMap[transId]
+    ses.state = TransState.prepare
     finishTrans(transId)
   }
 
@@ -175,6 +181,7 @@ class TransPageMgr : LogPageMgr {
       super.deletePage(transId, firstPage, lastPage)
     }
     logger.commit(transId)
+    ses.state = TransState.commit
     finishTrans(transId)
   }
 
@@ -192,6 +199,8 @@ class TransPageMgr : LogPageMgr {
 
   Bool prepare(Int transId) {
     logger.prepare(transId)
+    ses := sessionMap[transId]
+    ses.state = TransState.prepare
     return true
   }
 }

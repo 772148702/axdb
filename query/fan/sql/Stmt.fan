@@ -91,7 +91,7 @@ class FieldDefExpr {
 class SelectStmt : Stmt {
   Str[] fields := [,]
   Str[] tables := [,]
-  Expr? cond
+  BinaryExpr? cond
 
   override Str toStr() {
     fieldStr := fields.join(",")

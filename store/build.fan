@@ -18,7 +18,7 @@ class Build : BuildPod
     podName  = "axdbStore"
     summary  = "test"
     depends  = ["sys 1.0", "concurrent 1.0", "web 1.0", "util 1.0"]
-    srcDirs  = [`fan/`, `test/`, `fan/page/`, `fan/cache/`, `fan/log/`]
+    srcDirs  = [`fan/`, `fan/cache/`, `fan/log/`, `fan/page/`, `test/`]
   }
 }
 
