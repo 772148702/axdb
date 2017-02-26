@@ -12,7 +12,7 @@ const class RStateActor : Actor {
   static const Str key := "axdb.RStateActor."
   static const StoreMap map := StoreMap()
 
-  private const RKeeperActor keeperActor
+  internal const RKeeperActor keeperActor
 
   new make() : super(ActorPool{maxThreads=1}) {
     keeperActor = RKeeperActor(this)
@@ -26,7 +26,7 @@ const class RStateActor : Actor {
     echo("receive $msg")
 
     try {
-      node := locals.getOrAdd(key) |->RNode| { RNode() }
+      node := locals.getOrAdd(key) |->RNode| { RNode { actor = this } }
       return node.trap(name, args)
     } catch (Err e) {
       e.trace
@@ -52,10 +52,15 @@ internal const class RKeeperActor : Actor {
   }
 
   protected override Obj? receive(Obj? msg) {
-    sendLater(1sec, null)
     try {
       keeper := RKeeper(stateActor)
-      keeper.check
+      if (msg == null) {
+         sendLater(1sec, null)
+         keeper.check
+      }
+      else (msg == "pull") {
+        keeper.pull
+      }
     } catch (Err e) {
       e.trace
       throw e

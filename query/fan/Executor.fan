@@ -36,19 +36,29 @@ class Executor {
       case InsertStmt#:
         return insert(stmt)
       case SelectStmt#:
-        return query(stmt)
+        p := plan(stmt)
+        return query(p)
       default:
         echo("TODO $stmt")
     }
     return null
   }
 
-  private Str:Obj? query(SelectStmt stmt) {
+  Plan? plan(SelectStmt stmt) {
     keyExpr := stmt.cond.right as LiteralExpr
     keybuf := BufUtil.strToBuf(keyExpr.val)
-    valbuf := engine.search(transId, stmt.tables.first, keybuf)
-    data := JsonInStream(valbuf.in).readJson
-    return data
+    plan := IdSearchPlan {
+      it.table = stmt.tables.first
+      it.key = keybuf
+      it.executor = this
+    }
+    return plan
+  }
+
+  private [Str:Obj]? query(Plan plan) {
+    record := plan.next
+    if (record == null) return null
+    return record.vals
   }
 
   private Bool insert(InsertStmt stmt) {

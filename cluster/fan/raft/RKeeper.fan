@@ -47,9 +47,34 @@ class RKeeper {
   private Void sendKeepAlive() {
     node := getNode
     node.list.each {
-      client := AsyncClient(RServ#, it)
+      client := RpcClient(RServ#, it)
       client->send_onKeepAlive(node.term, node.commitLog, node.lastLog, node.self)
     }
+  }
+
+  static Bool waitMajority(Future[] futures) {
+    size := futures.size
+    count := 0
+    while (futures.size > 0) {
+      for (i:=0; i<futures.size; ++i) {
+        f := futures[i]
+        if (!f.state.isComplete) {
+          continue
+        }
+        futures.removeAt(i)
+
+        Str? res := f.get
+        if (res == "true")  {
+          count++
+          //echo("vote count: $count")
+          if (count+1 > (size+1)/2) {
+            return true
+          }
+        }
+      }
+      Actor.sleep(5ms)
+    }
+    return false
   }
 
   private Bool requestVote() {
@@ -59,24 +84,27 @@ class RKeeper {
     Uri[] list := node.list
     futures := Future[,]
     list.each {
-      client := AsyncClient(RServ#, it)
+      client := RpcClient(RServ#, it)
       f := client->send_onVote(node.term, node.lastLog)
       futures.add(f)
     }
 
-    count := 0
-    for (i:=0; i<futures.size; ++i) {
-      Str? res := futures[i].get
-      if (res == null) continue
+    return waitMajority(futures)
+  }
 
-      if (res == "true")  {
-        count++
-        echo("vote count: $count")
-        if (count+1 > (list.size+1)/2) {
-          return true
-        }
+  Void pull() {
+    node := getNode
+    client := RpcClient(RServ#, node.leader)
+    Str? res := client->onPull(node.term, node.lastLog, node.lastLogTerm)
+    if (res == null || res.startsWith("-2")) {
+      return
+    }
+
+    if (res == "-1") {
+      entry := state->send_removeFrom(node.lastLog)
+      if (entry != null) {
+        state.keeperActor.send("pull")
       }
     }
-    return false
   }
 }

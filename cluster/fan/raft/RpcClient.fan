@@ -8,7 +8,7 @@
 using concurrent
 using web
 
-class AsyncClient {
+class RpcClient {
   Uri uri
   static const Actor actor := WebActor()
   private Type type

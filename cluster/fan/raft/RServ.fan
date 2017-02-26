@@ -30,61 +30,21 @@ class RServ : Weblet {
     node->send_onVote(candidate, term, lastLogIndex, lastLogTerm)->get
   }
 
-  static private Obj? request(Int curLogId, RStateActor node, NodeSate nodeState) {
-    logId := curLogId
-    Obj? res
-    while (true) {
-      LogEntry entry := node->getLog(logId)
-      LogEntry pre := node->getLog(logId-1)
-      res = node->onReplicate(nodeState.term, nodeState.commitLog, nodeState.leader, pre.id, pre.term,
-        entry.term, entry.id, entry.log)->get
-      if (res != "false") {
-        break
-      }
-      --logId
-    }
-
-    while (logId < curLogId) {
-      LogEntry entry := node->getLog(logId)
-      LogEntry pre := node->getLog(--logId)
-      res = node->onReplicate(nodeState.term, nodeState.commitLog, nodeState.leader, pre.id, pre.term,
-        entry.term, entry.id, entry.log)->get
-    }
-    return true
-  }
-
   private Bool sendLog(Int logId, Str log) {
-    NodeSate nodeState := node->send_nodeState
+    LogEntry entry := node->getLog(logId)
+    LogEntry pre := node->getLog(logId-1)
+    NodeSate nodeState := node->send_nodeSate
+
     Uri[] list := nodeState.list
     futures := Future[,]
-    pool := ActorPool()
-
     list.each {
-      actor := Actor(pool) |RStateActor msg->Obj?| {
-        request(logId, node, nodeState)
-      }
-      f := actor->send(node)->get
+      client := RpcClient(RServ#, it)
+      f := node->onReplicate(nodeState.term, nodeState.commitLog, nodeState.leader, pre.id, pre.term,
+        entry.term, entry.id, entry.log)
       futures.add(f)
     }
 
-    while (true) {
-      count := 0
-      for (i:=0; i<futures.size; ++i) {
-        if (!futures[i].state.isComplete) {
-          continue
-        }
-        Bool? res := futures[i].get
-        if (res == null) continue
-        if (res == true)  {
-          count++
-          echo("vote count: $count")
-          if (count+1 > (list.size+1)/2) {
-            return true
-          }
-        }
-      }
-    }
-    return false
+    return RKeeper.waitMajority(futures)
   }
 
   Bool? addLog(Str log) {
@@ -98,17 +58,24 @@ class RServ : Weblet {
       return false
     }
 
-    res := sendLog(logId, log)
-    if (res) {
+    ok := sendLog(logId, log)
+    if (!ok) {
+      ok = sendLog(logId, log)
+    }
+    if (ok) {
       node->send_commit(logId)
     }
-    return res
+    return ok
   }
 
   Bool onReplicate(Int term, Int leaderCommit, Uri leaderId, Int prevLogIndex, Int prevLogTerm
     , Int logTerm, Int logId, Str log) {
     node->send_onReplicate(term, leaderCommit, leaderId, prevLogIndex, prevLogTerm,
       logTerm, logId, log)->get
+  }
+
+  Str onPull(Int term, Int prevLogIndex, Int prevLogTerm) {
+    node->send_onPull(term, prevLogIndex, prevLogTerm)->get
   }
 
   Void index() {
