@@ -10,72 +10,98 @@ using web
 
 class RServ : Weblet {
   private Str name
-  private RStateActor node() { RStateActor.map[name] }
+  private static const StoreMap nodeMap := StoreMap()
+  private RNodeActor? nodeActor() { nodeMap[name] }
 
-  new make(Str name) {
+  new make(Str? name) {
+    if (name == null) {
+      name = "default"
+    }
     this.name = name
   }
 
-  Bool init() {
+  Bool init(Bool isLeader) {
     absUri := req.absUri
     uri := `${absUri.scheme}://${absUri.auth}/$name`
 
-    actor := RStateActor()
-    RStateActor.map[name] = actor
-    res := actor->send_init(name, uri)->get
+    RNodeActor? tnode := nodeMap[name]
+    if (tnode == null) {
+      tnode = RNodeActor()
+      nodeMap[name] = tnode
+    }
+    res := tnode.init(name, uri, isLeader).get
     return res
   }
 
-  Bool onVote(Uri candidate, Int term, Int lastLogIndex, Int lastLogTerm) {
-    node->send_onVote(candidate, term, lastLogIndex, lastLogTerm)->get
+  ResResult onVote(Uri candidate, Int term, Int lastLogIndex, Int lastLogTerm) {
+    nodeActor.onVote(candidate, term, lastLogIndex, lastLogTerm)
   }
 
-  private Bool sendLog(Int logId, Str log) {
-    LogEntry entry := node->getLog(logId)
-    LogEntry pre := node->getLog(logId-1)
-    NodeSate nodeState := node->send_nodeSate
+  private Bool sendLog(RNodeActor actor, LogEntry entry) {
+    LogEntry? pre := actor.getLog(entry.id-1)
+    NodeSate nodeState := actor.nodeSate
 
-    Uri[] list := nodeState.list
+    if (pre == null) {
+      pre = LogEntry(-1, -1, "")
+    }
+
+    ae := AppendEntry {
+      term = nodeState.term
+      leaderCommit = nodeState.commitLog
+      leaderId = nodeState.self
+      prevLogIndex = pre.id
+      prevLogTerm = pre.term
+      logs = [entry]
+    }
+
     futures := Future[,]
-    list.each {
+    nodeState.eachOthers {
       client := RpcClient(RServ#, it)
-      f := node->onReplicate(nodeState.term, nodeState.commitLog, nodeState.leader, pre.id, pre.term,
-        entry.term, entry.id, entry.log)
+      f := client->send_onReplicate(ae)
       futures.add(f)
     }
 
     return RKeeper.waitMajority(futures)
   }
 
-  Bool? addLog(Str log) {
-    Int logId := node->send_addLog(log)->get
-    if (logId  == -1) {
-      NodeSate nodeState := node->send_nodeSate
-      if (nodeState.state != RState.leader) {
-        res.redirect(nodeState.leader)
-        return null
-      }
+  Bool? addNewLog(Str log, Int type:=0) {
+    node := nodeActor
+    NodeSate nodeState := node.nodeSate
+    if (nodeState.state != Role.leader) {
+      res.redirect(nodeState.leader)
+      return null
+    }
+
+    LogEntry? logEntry := node.addNewLog(log, type)
+    if (logEntry == null) {
       return false
     }
 
-    ok := sendLog(logId, log)
+    ok := sendLog(node, logEntry)
     if (!ok) {
-      ok = sendLog(logId, log)
+      ok = sendLog(node, logEntry)
     }
     if (ok) {
-      node->send_commit(logId)
+      node.commit(logEntry.id)
     }
     return ok
   }
 
-  Bool onReplicate(Int term, Int leaderCommit, Uri leaderId, Int prevLogIndex, Int prevLogTerm
-    , Int logTerm, Int logId, Str log) {
-    node->send_onReplicate(term, leaderCommit, leaderId, prevLogIndex, prevLogTerm,
-      logTerm, logId, log)->get
+  ResResult onReplicate(AppendEntry entry) {
+    actor := nodeActor
+    if (actor == null) {
+      init(false)
+      actor = nodeActor
+    }
+    return actor.onReplicate(entry)
   }
 
-  Str onPull(Int term, Int prevLogIndex, Int prevLogTerm) {
-    node->send_onPull(term, prevLogIndex, prevLogTerm)->get
+  ResResult onKeepAlive(AppendEntry entry) {
+    onReplicate(entry)
+  }
+
+  LogEntry onPull(Int term, Int prevLogIndex, Int prevLogTerm) {
+    nodeActor.onPull(term, prevLogIndex, prevLogTerm)
   }
 
   Void index() {
@@ -84,16 +110,22 @@ class RServ : Weblet {
     out := res.out
     out.html.body
 
-    NodeSate cur := node->send_nodeSate
-    out.p.w("self: $cur.self").pEnd
-    out.p.w("leader: $cur.leader").pEnd
-    out.p.w("state: $cur.state").pEnd
-    out.p.w("term: $cur.term").pEnd
-    out.p.w("commitLog: $cur.commitLog").pEnd
-    out.p.w("lastLog: $cur.lastLog").pEnd
+    node := nodeActor
+    if (node != null) {
+      NodeSate cur := node.nodeSate
+      out.p.w("self: $cur.self").pEnd
+      out.p.w("leader: $cur.leader").pEnd
+      out.p.w("state: $cur.state").pEnd
+      out.p.w("term: $cur.term").pEnd
+      out.p.w("commitLog: $cur.commitLog").pEnd
+      out.p.w("lastLog: $cur.lastLog").pEnd
 
-    cur.list.each {
-      out.w("<p>- $it</p>")
+      cur.members.each {
+        out.w("<p>- $it</p>")
+      }
+      out.p.w("$cur").pEnd
+    } else {
+      out.p.w("unint").pEnd
     }
     out.bodyEnd.htmlEnd
   }

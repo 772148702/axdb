@@ -8,18 +8,18 @@
 using concurrent
 
 class RKeeper {
-  RStateActor state
+  RNodeActor nodeActor
 
-  new make(RStateActor state) {
-    this.state = state
+  new make(RNodeActor nodeActor) {
+    this.nodeActor = nodeActor
   }
 
-  NodeSate? getNode() {
-    state->send_nodeStae->get
+  private NodeSate? getNode() {
+    nodeActor.nodeSate
   }
 
-  private Void changeRole(RState role) {
-    state->send_changeRole(role)
+  private Void changeRole(Role role) {
+    nodeActor.changeRole(role)
   }
 
   Void check() {
@@ -30,31 +30,60 @@ class RKeeper {
       return null
     }
 
-    if (node.state == RState.leader) {
-      sendKeepAlive
+    if (node.state == Role.leader) {
+      if (Duration.nowTicks - node.aliveTime > 5sec.ticks) {
+        echo("sendKeepAlive")
+        sendKeepAlive
+      }
       return
     }
 
-    if (Duration.nowTicks - node.aliveTime > 15sec.ticks) {
-       if (requestVote) {
-         changeRole(RState.leader)
-       } else {
-         changeRole(RState.follower)
+    if (Duration.nowTicks - node.aliveTime > 10sec.ticks) {
+       if (node.voteEnable) {
+         nodeActor.sendVote
        }
+    }
+  }
+
+  Void vote() {
+    node := getNode
+    if (Duration.nowTicks - node.aliveTime < 10sec.ticks) {
+     return
+    }
+    echo("requestVote")
+    if (requestVote) {
+      changeRole(Role.leader)
+      client := RpcClient(RServ#, node.self)
+      suc := client->addNewLog("take office", 2)
+      if (suc != "true") {
+        changeRole(Role.follower)
+      }
+    } else {
+     changeRole(Role.follower)
     }
   }
 
   private Void sendKeepAlive() {
     node := getNode
-    node.list.each {
+    ae := AppendEntry {
+      term = node.term
+      leaderCommit = node.commitLog
+      leaderId = node.self
+      prevLogIndex = node.lastLog
+      prevLogTerm = node.lastLogTerm
+      logs = [,]
+    }
+    node.eachOthers {
       client := RpcClient(RServ#, it)
-      client->send_onKeepAlive(node.term, node.commitLog, node.lastLog, node.self)
+      client->send_onKeepAlive(ae)
     }
   }
 
   static Bool waitMajority(Future[] futures) {
     size := futures.size
     count := 0
+    if (size == 0) return true
+
     while (futures.size > 0) {
       for (i:=0; i<futures.size; ++i) {
         f := futures[i]
@@ -63,12 +92,15 @@ class RKeeper {
         }
         futures.removeAt(i)
 
-        Str? res := f.get
-        if (res == "true")  {
-          count++
-          //echo("vote count: $count")
-          if (count+1 > (size+1)/2) {
-            return true
+        Str? str := f.get
+        if (str != null) {
+          res := ResResult(str)
+          if (res.success) {
+            count++
+            //echo("vote count: $count")
+            if (count+1 > (size+1)/2) {
+              return true
+            }
           }
         }
       }
@@ -78,14 +110,14 @@ class RKeeper {
   }
 
   private Bool requestVote() {
-    changeRole(RState.candidate)
+    changeRole(Role.candidate)
 
     node := getNode
-    Uri[] list := node.list
     futures := Future[,]
-    list.each {
+    node.eachOthers {
       client := RpcClient(RServ#, it)
-      f := client->send_onVote(node.term, node.lastLog)
+      //Uri candidate, Int term, Int lastLogIndex, Int lastLogTerm
+      f := client->send_onVote(node.self, node.term, node.lastLog, node.lastLogTerm)
       futures.add(f)
     }
 
@@ -93,18 +125,34 @@ class RKeeper {
   }
 
   Void pull() {
+    //echo("pull *******")
     node := getNode
     client := RpcClient(RServ#, node.leader)
     Str? res := client->onPull(node.term, node.lastLog, node.lastLogTerm)
-    if (res == null || res.startsWith("-2")) {
+    echo("pull receive $res")
+    if (res == null) return
+
+    log := LogEntry(res)
+    if (log.type == -1) {
+      switch (log.id) {
+        case -2:
+          return
+        case -1:
+          success := nodeActor.removeFrom(node.lastLog)
+          if (success) {
+            nodeActor.sendPull
+          }
+          return
+        case -3:
+          return
+      }
       return
     }
 
-    if (res == "-1") {
-      entry := state->send_removeFrom(node.lastLog)
-      if (entry != null) {
-        state.keeperActor.send("pull")
-      }
+    ok := nodeActor.addLogEntry(node.lastLog, node.lastLogTerm, log)
+    if (!ok) {
+      echo("addLogEntry err")
     }
+    nodeActor.sendPull
   }
 }

@@ -27,11 +27,14 @@ const class RefMod : WebMod {
   protected virtual Void doService(Bool post) {
     //get method
     paths := req.modRel.path
-    name := paths[0]
+    mthName := paths[0]
     Str? ctorName := null
-    if (paths.size>1) ctorName = paths[1]
+    if (paths.size>1) {
+      ctorName = mthName
+      mthName = paths[1]
+    }
 
-    method := type.method(name)
+    method := type.method(mthName)
     if (!method.isPublic) {
       res.sendErr(501)
       return
@@ -48,7 +51,7 @@ const class RefMod : WebMod {
     //call
     try {
       obj := type.make([ctorName])
-      r := obj.trap(name, args)
+      r := obj.trap(mthName, args)
 
       //send result
       if (r != null) {

@@ -19,10 +19,10 @@ class RpcClient {
   }
 
   override Obj? trap(Str name, Obj?[]? args := null) {
-    Bool async := false
+    Bool async := true
     if (name.startsWith("send_")) {
       name = name[5..-1]
-      async = true
+      async = false
     }
     method := type.method(name)
     query := [Str:Str][:]
@@ -30,7 +30,7 @@ class RpcClient {
       query[v.name] = args[i].toStr
     }
     reqUri := (uri + name.toUri).plusQuery(query)
-    //echo("send req: $reqUri")
+    echo("req: $reqUri")
 
     if (!async) {
       return actor.send(reqUri)
@@ -55,7 +55,7 @@ const class WebActor : Actor {
   new make() : super(ActorPool{}) {
   }
   protected override Obj? receive(Obj? msg) {
-    echo("send: $msg")
+    //echo("send: $msg")
     Uri uri := msg
     Obj? res := null
     WebClient? c

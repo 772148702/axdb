@@ -8,26 +8,59 @@
 using concurrent
 using web
 
-const class RStateActor : Actor {
-  static const Str key := "axdb.RStateActor."
-  static const StoreMap map := StoreMap()
+const class RNodeActor : Actor {
+  private static const Str key := "axdb.RStateActor."
 
-  internal const RKeeperActor keeperActor
+  private const Actor keeperActor
+
+  const Duration keepAliveTime := 5sec
 
   new make() : super(ActorPool{maxThreads=1}) {
-    keeperActor = RKeeperActor(this)
+    keeperActor = Actor(ActorPool{maxThreads=1}) |Obj? arg->Obj?| { return onKeep(arg) }
+    keeperActor.sendLater(keepAliveTime, null)
+  }
+
+  private Obj? onKeep(Obj? msg) {
+     try {
+      //echo("keeper actor: $msg")
+      keeper := RKeeper(this)
+      if (msg == null) {
+         keeperActor.sendLater(keepAliveTime, null)
+         keeper.check
+      }
+      else if (msg == "pull") {
+        keeper.pull
+      }
+      else if (msg == "vote") {
+        keeper.vote
+      }
+    } catch (Err e) {
+      e.trace
+      throw e
+    }
+    return null
+  }
+
+  Void sendPull() {
+    echo("send Pull")
+    keeperActor.send("pull")
+  }
+
+  Void sendVote() {
+    mils := (0..1000).random
+    keeperActor.sendLater(Duration(mils*1000_000), "vote")
   }
 
   protected override Obj? receive(Obj? msg) {
     Obj?[]? arg := msg
-    Str name := arg[0]
+    Str method := arg[0]
     Obj?[]? args := arg[1]
 
-    echo("receive $msg")
+    //echo("receive $msg")
 
     try {
       node := locals.getOrAdd(key) |->RNode| { RNode { actor = this } }
-      return node.trap(name, args)
+      return node.trap(method, args)
     } catch (Err e) {
       e.trace
       throw e
@@ -41,31 +74,49 @@ const class RStateActor : Actor {
     }
     return super.trap(name, args)
   }
-}
 
-internal const class RKeeperActor : Actor {
-  const RStateActor stateActor
-
-  new make(RStateActor stateActor) : super(ActorPool{maxThreads=1}) {
-    this.stateActor = stateActor
-    sendLater(1sec, null)
+  Future init(Str name, Uri self, Bool isLeader) {
+    this.send(["init", [name, self, isLeader].toImmutable].toImmutable)
   }
 
-  protected override Obj? receive(Obj? msg) {
-    try {
-      keeper := RKeeper(stateActor)
-      if (msg == null) {
-         sendLater(1sec, null)
-         keeper.check
-      }
-      else (msg == "pull") {
-        keeper.pull
-      }
-    } catch (Err e) {
-      e.trace
-      throw e
-    }
-    return null
+  NodeSate nodeSate() {
+    this.send(["nodeSate", [,].toImmutable].toImmutable).get
+  }
+
+  Future changeRole(Role role) {
+    this.send(["changeRole", [role].toImmutable].toImmutable)
+  }
+
+  Bool removeFrom(Int id) {
+    this.send(["removeFrom", [id].toImmutable].toImmutable).get
+  }
+
+  LogEntry onPull(Int term, Int prevLogIndex, Int prevLogTerm) {
+    this.send(["onPull", [term, prevLogIndex, prevLogTerm].toImmutable].toImmutable).get
+  }
+
+  ResResult onVote(Uri candidate, Int term, Int lastLogIndex, Int lastLogTerm) {
+    this.send(["onVote", [candidate, term, lastLogIndex, lastLogTerm].toImmutable].toImmutable).get
+  }
+
+  ResResult onReplicate(AppendEntry entry) {
+    this.send(["onReplicate", [entry].toImmutable].toImmutable).get
+  }
+
+  LogEntry? getLog(Int i) {
+    this.send(["getLog", [i].toImmutable].toImmutable).get
+  }
+
+  LogEntry? addNewLog(Str log, Int type) {
+    this.send(["addNewLog", [log, type].toImmutable].toImmutable).get
+  }
+
+  Void commit(Int logId) {
+    this.send(["commit", [logId].toImmutable].toImmutable).get
+  }
+
+  Bool addLogEntry(Int prevLogIndex, Int prevLogTerm, LogEntry le) {
+    this.send(["addLogEntry", [prevLogIndex, prevLogTerm, le].toImmutable].toImmutable).get
   }
 }
 
@@ -109,4 +160,3 @@ const class StoreMap
 
   Void clear() { actor.send(["clear"].toImmutable) }
 }
-
