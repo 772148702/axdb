@@ -15,19 +15,19 @@ class LogPosFile {
   ** version for file format
   Int version := 0
 
-  ** flag for commit change
-  Int flag := 0
+  ** flag for commit change, num of fold
+  private Int foldNum := 0
 
-  ** locally offset of file
+  ** pos of first record in files(will fold to first file by trim)
   Int offset := 0
 
-  ** offsetPoint global history pos
-  Int beginPos := 0
+  ** as sanme offset but global history pos
+  Int globalPos := 0
 
   ** content length
   Int length := 0
 
-  ** last checkPoint pos
+  ** last checkPoint pos(base of offset)
   Int checkPoint := 0
 
   ** file count
@@ -36,15 +36,19 @@ class LogPosFile {
   ** size file per
   Int fileSize := 1024 * 1024 * 1024
 
+  Int userData := 0
+
+  Int unused := 0
+
   private File posFile
-  private File posFile2
+  private File tempFile
 
   new make(File dir, Str name) {
     this.path = dir
     this.name = name
 
     posFile = dir + `${name}-log.pos`
-    posFile2 = dir + `${name}-log2.pos`
+    tempFile = dir + `${name}-log2.pos`
   }
 
   private Void read() {
@@ -52,18 +56,20 @@ class LogPosFile {
     in := buf.in
 
     version = in.readS8
-    flag = in.readS8
+    foldNum = in.readS8
     offset = in.readS8
-    beginPos = in.readS8
+    globalPos = in.readS8
     length = in.readS8
     checkPoint = in.readS8
     fileCount = in.readS8
     fileSize = in.readS8
+    userData = in.readS8
+    unused = in.readS8
   }
 
-  Void flushFlag() {
+  private Void flushFoldNum() {
     buf.seek(8)
-    buf.out.writeI8(flag)
+    buf.out.writeI8(foldNum)
     buf.out.flush
     buf.sync
   }
@@ -72,17 +78,19 @@ class LogPosFile {
     buf.seek(0)
     out := buf.out
     out.writeI8(version)
-    out.writeI8(flag)
+    out.writeI8(foldNum)
     out.writeI8(offset)
-    out.writeI8(beginPos)
+    out.writeI8(globalPos)
     out.writeI8(length)
     out.writeI8(checkPoint)
     out.writeI8(fileCount)
     out.writeI8(fileSize)
+    out.writeI8(userData)
+    out.writeI8(unused)
   }
 
   override Str toStr() {
-    "flag=$flag,offset=$offset,beginPos=$beginPos,length=$length,checkPoint=$checkPoint,fileCount=$fileCount,fileSize=$fileSize"
+    "foldNum=$foldNum,offset=$offset,globalPos=$globalPos,length=$length,checkPoint=$checkPoint,fileCount=$fileCount,fileSize=$fileSize"
   }
 
   Void flush() {
@@ -93,15 +101,16 @@ class LogPosFile {
   Void close() {
     flush
     buf.close
+    buf = null
   }
 
-  Void openFile(Bool backup := false) {
+  private Void openFile(Bool backup := false) {
     if (buf != null) {
       flush
       buf.close
     }
 
-    f := backup ? posFile2 : posFile
+    f := backup ? tempFile : posFile
     if (f.exists) {
       buf = f.open
       read
@@ -111,41 +120,76 @@ class LogPosFile {
     }
   }
 
+  Void fold(LogFile logFile) {
+    beginFileId := this.offset / this.fileSize
+    if (beginFileId == 0) return false
+
+    //open backup file
+    this.openFile(true)
+
+    offset := beginFileId * this.fileSize
+    this.offset -= offset
+    this.fileCount -= beginFileId
+    this.foldNum = -1
+    this.flush
+
+    //commit
+    this.foldNum = beginFileId
+    this.flushFoldNum
+
+    //open and recover
+    doFold(logFile)
+    openFile
+  }
+
+  private Void doFold(LogFile logFile) {
+    if (foldNum > 0) {
+      PageMgr.log.debug("start recover:foldNum=$foldNum,fileCount=$fileCount")
+
+      for (i := 0; i<fileCount; ++i) {
+        f := logFile.getFile(i)
+        f2 := logFile.getFile(i + foldNum)
+        if (!f.exists) {
+          f2.rename(f.name)
+        }
+        else if (f2.exists) {
+          f.delete
+          f2.rename(f.name)
+        }
+      }
+
+      foldNum = 0
+      flushFoldNum
+
+      close
+      posFile.delete
+      tempFile.rename(posFile.name)
+    }
+    else if (foldNum < 0) {
+      close
+      tempFile.delete
+    } else {
+      close
+      posFile.delete
+      tempFile.rename(posFile.name)
+    }
+  }
+
   Void open(LogFile logFile) {
-    if (!posFile2.exists) {
+    if (!tempFile.exists) {
       openFile
       return
     }
 
     openFile(true)
-
-    PageMgr.log.debug("start recover:flag=$flag,fileCount=$fileCount")
-
-    for (i := 0; i<fileCount; ++i) {
-      f := logFile.getFile(i)
-      f2 := logFile.getFile(i + flag)
-      if (!f.exists) {
-        f2.rename(f.name)
-      }
-      else if (f2.exists) {
-        f.delete
-        f2.rename(f.name)
-      }
-    }
-
-    flag = 0
-    flushFlag
-
-    posFile.delete
-    posFile2.rename(posFile.name)
-
+    doFold(logFile)
     openFile
   }
 }
 
 **
 ** Append only and random read File
-** can be trim from front
+** Donot save the position that will be changed by trim operate
 **
 class LogFile {
   private File path
@@ -156,6 +200,7 @@ class LogFile {
   private LogPosFile posFile
   Int lastReadPos := 0 { private set }
 
+  ** avoid trim
   Bool pin := false
 
   private Bool dirty := true
@@ -169,6 +214,11 @@ class LogFile {
   Int checkPoint {
     get { posFile.checkPoint }
     set { posFile.checkPoint = it }
+  }
+
+  Int userData {
+    get { posFile.userData }
+    set { posFile.userData = it }
   }
 
   internal Int fileCount() { posFile.fileCount }
@@ -191,6 +241,9 @@ class LogFile {
     posFile.length
   }
 
+  **
+  ** write compressed obj to last
+  **
   Void writeBufObj(Buf buf) {
     buf.seek(0)
     //compress
@@ -206,6 +259,9 @@ class LogFile {
     writeBuf(nbuf)
   }
 
+  **
+  ** read compressed obj from position and update lastReadPos
+  **
   Buf? readBufObj(Int pos) {
     try {
       if (pos >= length) return null
@@ -235,6 +291,9 @@ class LogFile {
     }
   }
 
+  **
+  ** append to last
+  **
   Void writeBuf(Buf buf, Int n := buf.remaining) {
     seek(posFile.length, true)
 
@@ -256,6 +315,9 @@ class LogFile {
     dirty = true
   }
 
+  **
+  ** read from postion
+  **
   Int? readBuf(Int pos, Buf buf, Int n) {
     ok := seek(pos)
     if (!ok) return null
@@ -320,6 +382,7 @@ class LogFile {
     path + `${name}-${id}.log`
   }
 
+  ** remove range[pos..-1]
   Bool removeFrom(Int pos) {
     dsize := posFile.length - pos
     if (dsize <= 0) return false
@@ -330,12 +393,16 @@ class LogFile {
     return true
   }
 
+  **
+  ** remvoe before pos and move origin to pos
+  ** pos is base of offset
+  **
   Bool trim(Int pos) {
     if (pin) return false
     PageMgr.log.debug("trim:$pos")
 
     posFile.offset += pos
-    posFile.beginPos += pos
+    posFile.globalPos += pos
     posFile.length -= pos
     posFile.checkPoint -= pos
     if (posFile.checkPoint < 0) {
@@ -343,24 +410,7 @@ class LogFile {
     }
     posFile.flush
 
-    beginFileId := posFile.offset / posFile.fileSize
-    if (beginFileId == 0) return false
-
-    //open backup file
-    posFile.openFile(true)
-
-    offset := beginFileId * posFile.fileSize
-    posFile.offset -= offset
-    posFile.fileCount -= beginFileId
-    posFile.flag = -1
-    posFile.flush
-
-    //commit
-    posFile.flag = beginFileId
-    posFile.flushFlag
-
-    //open and recover
-    posFile.open(this)
+    posFile.fold(this)
 
     return true
   }

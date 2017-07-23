@@ -7,8 +7,11 @@
 
 class Util {
   static Str[] split(Str str, Str sp, Int max := Int.maxVal) {
+    if (sp.size == 0) {
+      return [str]
+    }
     res := Str[,]
-    while (str.size > 0) {
+    while (true) {
       if (res.size == max-1) {
         res.add(str)
         break
@@ -26,7 +29,7 @@ class Util {
       if (start < str.size) {
         str = str[start..-1]
       } else {
-        break
+        str = ""
       }
     }
 

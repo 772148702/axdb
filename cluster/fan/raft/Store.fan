@@ -17,10 +17,15 @@ class LogPos {
 
 class StoreLogFile : RLogFile {
   axdbStore::LogFile logFile
-  private Int count := 0
+
+  private Int count {
+    get { return logFile.userData }
+    set { logFile.userData = it }
+  }
 
   new make(File path, Str name) {
     logFile = axdbStore::LogFile(path, name)
+    logFile.open
   }
 
   Void flush() {
@@ -32,8 +37,9 @@ class StoreLogFile : RLogFile {
   }
 
   override Void add(LogEntry entry) {
+    str := entry.toStr
     buf := Buf()
-    buf.writeUtf(entry.log)
+    buf.writeUtf(str)
     buf.writeI4(buf.size)
     buf.flip
     logFile.writeBuf(buf)
@@ -44,6 +50,7 @@ class StoreLogFile : RLogFile {
     Buf out := Buf()
     out.seek(0)
     logFile.readBuf(beginPos.pos, out, beginPos.size)
+    out.flip
     Str s := out.readUtf
     return LogEntry(s)
   }
@@ -72,7 +79,7 @@ class StoreLogFile : RLogFile {
   }
 
   override LogEntry? get(Int i) {
-    if (i >= count) return null
+    if (i >= count || i < 0) return null
     p := getLogPos(i)
     return readLog(p)
   }
@@ -80,7 +87,11 @@ class StoreLogFile : RLogFile {
   override Bool removeFrom(Int i) {
     if (i >= count) return false
     p := getLogPos(i)
-    return removeFrom(p.pos)
+    res := logFile.removeFrom(p.pos)
+    if (res) {
+      count = i
+    }
+    return res
   }
 }
 

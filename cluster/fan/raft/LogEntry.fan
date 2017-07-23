@@ -30,11 +30,12 @@ const class LogEntry {
   }
 }
 
-abstract class RLogFile {
+mixin RLogFile {
   abstract Void add(LogEntry entry)
 
   abstract LogEntry? get(Int i)
 
+  ** remove range[i..-1]
   abstract Bool removeFrom(Int i)
 }
 
