@@ -30,18 +30,29 @@ const class LogEntry {
   }
 }
 
-class LogFile {
-  LogEntry[] logs := [,]
+abstract class RLogFile {
+  abstract Void add(LogEntry entry)
 
-  Void add(LogEntry entry) { logs.add(entry) }
+  abstract LogEntry? get(Int i)
 
-  LogEntry? get(Int i) { logs.getSafe(i) }
+  abstract Bool removeFrom(Int i)
+}
 
-  Bool removeFrom(Int i) {
+
+class MemLogFile : RLogFile {
+  private LogEntry[] logs := [,]
+
+  override Void add(LogEntry entry) { logs.add(entry) }
+
+  override LogEntry? get(Int i) { logs.getSafe(i) }
+
+  override Bool removeFrom(Int i) {
     if (i >= logs.size) return false
     logs.removeRange(i..-1)
     return true
   }
+
+  override Str toStr() { "$logs" }
 }
 
 

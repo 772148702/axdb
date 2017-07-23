@@ -7,11 +7,46 @@
 
 using concurrent
 
-class RKeeper {
-  RNodeActor nodeActor
+const class RKeeper {
+  private const RNodeActor nodeActor
+  private const Actor keeperActor
+  private const Duration keepAliveTime := 5sec
 
   new make(RNodeActor nodeActor) {
     this.nodeActor = nodeActor
+    keeperActor = Actor(ActorPool{maxThreads=1}) |Obj? arg->Obj?| { return onKeep(arg) }
+    keeperActor.sendLater(keepAliveTime, null)
+  }
+
+  private Obj? onKeep(Obj? msg) {
+     try {
+      //echo("keeper actor: $msg")
+      keeper := this
+      if (msg == null) {
+         keeperActor.sendLater(keepAliveTime, null)
+         keeper.check
+      }
+      else if (msg == "pull") {
+        keeper.pull
+      }
+      else if (msg == "vote") {
+        keeper.vote
+      }
+    } catch (Err e) {
+      e.trace
+      throw e
+    }
+    return null
+  }
+
+  Void sendPull() {
+    echo("send Pull")
+    keeperActor.send("pull")
+  }
+
+  Void sendVote() {
+    mils := (0..1000).random
+    keeperActor.sendLater(Duration(mils*1000_000), "vote")
   }
 
   private NodeSate? getNode() {
@@ -40,7 +75,7 @@ class RKeeper {
 
     if (Duration.nowTicks - node.aliveTime > 10sec.ticks) {
        if (node.voteEnable) {
-         nodeActor.sendVote
+         sendVote
        }
     }
   }

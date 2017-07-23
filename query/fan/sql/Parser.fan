@@ -4,6 +4,7 @@
 // History:
 //   2017-1-21  Jed Young  Creation
 //
+using axdbStore
 
 class Parser {
   private CmpUnit unit := CmpUnit()
@@ -37,6 +38,12 @@ class Parser {
           unit.add(createStmt)
         case "drop":
           unit.add(dropStmt)
+        case "begin":
+          unit.add(parseTrans(TransState.begin))
+        case "commit":
+          unit.add(parseTrans(TransState.commit))
+        case "rooback":
+          unit.add(parseTrans(TransState.abort))
         default:
           throw ArgErr("unknow token $cur")
       }
@@ -301,12 +308,27 @@ class Parser {
     return stmt
   }
 
-   private Stmt dropStmt() {
+  private Stmt dropStmt() {
     consume
     stmt := DropStmt()
     stmt.type = getAndConsume(Token.keyword)
     stmt.table = getAndConsume(Token.identifier)
     return stmt
+  }
+
+  private Stmt parseTrans(TransState state) {
+    consume
+    if (cur.val != "transaction") {
+      throw ArgErr("expected transaction")
+    }
+    consume
+
+    Int? transId
+    if (cur.kind == Token.literal && cur.val != null) {
+      transId = cur.val as Int
+    }
+    trans := TransStmt { it.state = state; it.transId = transId }
+    return trans
   }
 }
 

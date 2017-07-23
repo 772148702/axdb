@@ -33,12 +33,24 @@ internal class DbBTree : BTree {
 }
 
 class Engine {
-  StoreClient store
+  const StoreClient store
   TableMeta tableMeta := TableMeta()
+  private Executor executor
 
   new make(File path, Str name) {
     store = StoreClient(path, name)
     init
+    executor = Executor(this)
+  }
+
+  new makeStore(StoreClient store) {
+    this.store = store
+    init
+    executor = Executor(this)
+  }
+
+  Obj?[] exeSql(Str sql) {
+    executor.exeSql(sql)
   }
 
   private Void init() {

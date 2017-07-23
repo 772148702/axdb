@@ -12,6 +12,7 @@ class Executor {
 
   Engine engine
   Int? transId
+  private Bool autoCommit := true
 
   new make(Engine engine) {
     this.engine = engine
@@ -21,11 +22,22 @@ class Executor {
     parser := Parser(sql)
     unit := parser.parse
 
+    if (transId == null) {
+      if (unit.stmts.first.typeof == TransStmt#) {
+        autoCommit = false
+      } else {
+        autoCommit = true
+        transId = engine.transact(null, TransState.begin)
+      }
+    }
+
     res := [,]
     unit.stmts.each {
       echo("exe: $it")
       res.add(exeStmt(it))
     }
+
+    tryCommit
     return res
   }
 
@@ -38,10 +50,33 @@ class Executor {
       case SelectStmt#:
         p := plan(stmt)
         return query(p)
+      case TransStmt#:
+        return trans(stmt)
       default:
         echo("TODO $stmt")
     }
     return null
+  }
+
+  private Void tryCommit() {
+    if (!autoCommit || transId == null) return
+    engine.transact(transId, TransState.commit)
+    transId = null
+  }
+
+  private Obj? trans(TransStmt stmt) {
+    if (stmt.state == TransState.begin) {
+      tryCommit
+    }
+
+    id := engine.transact(stmt.transId, stmt.state)
+    if (stmt.state == TransState.begin) {
+      transId = id
+    } else {
+      transId = null
+      autoCommit = true
+    }
+    return id
   }
 
   Plan? plan(SelectStmt stmt) {

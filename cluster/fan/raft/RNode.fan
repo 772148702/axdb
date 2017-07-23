@@ -6,6 +6,7 @@
 //
 
 using concurrent
+using axdbStore
 
 enum class Role {
   leader, follower, candidate
@@ -109,7 +110,9 @@ class RNode {
   Str name := ""
   Bool voteEnable := true
 
-  LogFile logFile := LogFile()
+  RLogFile? logFile
+
+  RStore? store
 
   LogEntry? getLog(Int i) { logFile.get(i) }
 
@@ -145,7 +148,7 @@ class RNode {
     return true
   }
 
-  Bool init(Str name, Uri self, Bool isLeader) {
+  Bool init(Str name, Uri self, Bool isLeader, StoreClient store) {
     this.name = name
     this.self = self
     this.members = [self]
@@ -155,6 +158,9 @@ class RNode {
       state = Role.leader
     }
 
+    this.store = RStore(store)
+    this.logFile = StoreLogFile(`./raftLog`.toFile, name)
+
     echo("init $name, $self, $isLeader")
     return true
   }
@@ -163,7 +169,7 @@ class RNode {
     logFile.add(log)
     lastLog = log.id
     lastLogTerm = log.term
-    echo("add $log.id, $logFile.logs")
+    echo("add $log.id, $logFile")
     if (log.type == 1) {
       voteEnable = false
     }
@@ -204,7 +210,7 @@ class RNode {
     for (; i<=logId; ++i) {
       LogEntry? e := getLog(i)
       if (e == null) {
-        echo("$i at $logFile.logs")
+        echo("$i at $logFile")
       }
       if (e.type == 1) {
         members = e.log.split(',').map { it.toUri }

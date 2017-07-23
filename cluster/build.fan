@@ -17,7 +17,7 @@ class Build : BuildPod
   {
     podName  = "axdbCluster"
     summary  = "distributed cluster"
-    depends  = ["sys 1.0", "concurrent 1.0", "web 1.0", "util 1.0", "axdbStore 1.0"]
+    depends  = ["sys 1.0", "concurrent 1.0", "web 1.0", "util 1.0", "axdbStore 1.0", "axdbQuery 1.0"]
     srcDirs  = [`fan/`, `fan/raft/`, `fan/shard/`, `test/`]
   }
 }

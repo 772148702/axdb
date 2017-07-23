@@ -7,6 +7,7 @@
 
 using concurrent
 using web
+using axdbStore
 
 class RServ : Weblet {
   private Str name
@@ -29,7 +30,9 @@ class RServ : Weblet {
       tnode = RNodeActor()
       nodeMap[name] = tnode
     }
-    res := tnode.init(name, uri, isLeader).get
+
+    store := StoreClient(`./raftStore`.toFile, name)
+    res := tnode.init(name, uri, isLeader, store).get
     return res
   }
 

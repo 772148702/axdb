@@ -4,6 +4,7 @@
 // History:
 //   2017-1-21  Jed Young  Creation
 //
+using axdbStore
 
 ** expression
 class Expr {
@@ -162,6 +163,19 @@ class DropStmt : Stmt {
 
   override Str toStr() {
     "drop $type $table"
+  }
+}
+
+class TransStmt : Stmt {
+  TransState state := TransState.begin
+  Int? transId
+
+  override Str toStr() {
+    str := "$state transaction"
+    if (transId == null) {
+      return str
+    }
+    return "$str $transId"
   }
 }
 

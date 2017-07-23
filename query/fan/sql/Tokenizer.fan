@@ -69,6 +69,10 @@ internal class Tokenizer {
       "limit":1,
       "primary":1,
       "key":2,
+      "begin":2,
+      "commit":2,
+      "rollback":2,
+      "transaction" : 2,
     ]
 
   new make(Str in) {

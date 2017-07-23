@@ -7,48 +7,19 @@
 
 using concurrent
 using web
+using axdbStore
 
 const class RNodeActor : Actor {
   private static const Str key := "axdb.RStateActor."
 
-  private const Actor keeperActor
-
-  const Duration keepAliveTime := 5sec
+  private const RKeeper keeper
 
   new make() : super(ActorPool{maxThreads=1}) {
-    keeperActor = Actor(ActorPool{maxThreads=1}) |Obj? arg->Obj?| { return onKeep(arg) }
-    keeperActor.sendLater(keepAliveTime, null)
-  }
-
-  private Obj? onKeep(Obj? msg) {
-     try {
-      //echo("keeper actor: $msg")
-      keeper := RKeeper(this)
-      if (msg == null) {
-         keeperActor.sendLater(keepAliveTime, null)
-         keeper.check
-      }
-      else if (msg == "pull") {
-        keeper.pull
-      }
-      else if (msg == "vote") {
-        keeper.vote
-      }
-    } catch (Err e) {
-      e.trace
-      throw e
-    }
-    return null
+    keeper = RKeeper(this)
   }
 
   Void sendPull() {
-    echo("send Pull")
-    keeperActor.send("pull")
-  }
-
-  Void sendVote() {
-    mils := (0..1000).random
-    keeperActor.sendLater(Duration(mils*1000_000), "vote")
+    keeper.sendPull
   }
 
   protected override Obj? receive(Obj? msg) {
@@ -75,8 +46,8 @@ const class RNodeActor : Actor {
     return super.trap(name, args)
   }
 
-  Future init(Str name, Uri self, Bool isLeader) {
-    this.send(["init", [name, self, isLeader].toImmutable].toImmutable)
+  Future init(Str name, Uri self, Bool isLeader, StoreClient store) {
+    this.send(["init", [name, self, isLeader, store].toImmutable].toImmutable)
   }
 
   NodeSate nodeSate() {

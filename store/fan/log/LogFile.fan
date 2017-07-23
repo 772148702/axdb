@@ -18,7 +18,7 @@ class LogPosFile {
   ** flag for commit change
   Int flag := 0
 
-  ** offset of file
+  ** locally offset of file
   Int offset := 0
 
   ** offsetPoint global history pos
@@ -318,6 +318,16 @@ class LogFile {
 
   internal File getFile(Int id) {
     path + `${name}-${id}.log`
+  }
+
+  Bool removeFrom(Int pos) {
+    dsize := posFile.length - pos
+    if (dsize <= 0) return false
+
+    posFile.length -= dsize
+    files := dsize / posFile.fileSize
+    posFile.fileCount -= files
+    return true
   }
 
   Bool trim(Int pos) {

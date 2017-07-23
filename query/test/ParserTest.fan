@@ -24,6 +24,7 @@ class ParserTest : Test {
       "DELETE FROM User WHERE Name = 'Wilson' ",
       "CREATE TABLE User(id bitint NOT NULL,name varchar(255), age int, PRIMARY KEY (id))",
       "DROP TABLE User",
+      "BEGIN TRANSACTION",
     ]
 
     sqls.each {
