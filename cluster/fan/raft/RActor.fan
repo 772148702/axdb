@@ -46,12 +46,24 @@ const class RNodeActor : Actor {
     return super.trap(name, args)
   }
 
-  Future init(Str name, Uri self, Bool isLeader, StoreClient store) {
-    this.send(["init", [name, self, isLeader, store].toImmutable].toImmutable)
+  Future init(File path, Str name, Uri self, Bool isLeader, StoreClient store) {
+    this.send(["init", [path, name, self, isLeader, store].toImmutable].toImmutable)
+  }
+
+  Future close() {
+    this.send(["close", [,].toImmutable].toImmutable)
   }
 
   NodeSate nodeSate() {
     this.send(["nodeSate", [,].toImmutable].toImmutable).get
+  }
+
+  StoreClient getStore() {
+    this.send(["getStore", [,].toImmutable].toImmutable).get
+  }
+
+  Void setMatchIndex(Uri id, Int pos) {
+    this.send(["setMatchIndex", [id, pos].toImmutable].toImmutable)
   }
 
   Future changeRole(Role role) {
@@ -82,7 +94,7 @@ const class RNodeActor : Actor {
     this.send(["addNewLog", [log, type].toImmutable].toImmutable).get
   }
 
-  Void commit(Int logId) {
+  Future? commit(Int logId) {
     this.send(["commit", [logId].toImmutable].toImmutable).get
   }
 

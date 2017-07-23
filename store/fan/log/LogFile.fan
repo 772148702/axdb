@@ -47,8 +47,22 @@ class LogPosFile {
     this.path = dir
     this.name = name
 
-    posFile = dir + `${name}-log.pos`
-    tempFile = dir + `${name}-log2.pos`
+    posFile = path + `${name}-log.pos`
+    tempFile = path + `${name}-log2.pos`
+  }
+
+  private Int checkCode() {
+    Int c := version
+    c = c * 31 + foldNum
+    c = c * 31 + offset
+    c = c * 31 + globalPos
+    c = c * 31 + length
+    c = c * 31 + checkPoint
+    c = c * 31 + fileCount
+    c = c * 31 + fileSize
+    c = c * 31 + userData
+    c = c * 31 + unused
+    return c
   }
 
   private Void read() {
@@ -65,13 +79,10 @@ class LogPosFile {
     fileSize = in.readS8
     userData = in.readS8
     unused = in.readS8
-  }
-
-  private Void flushFoldNum() {
-    buf.seek(8)
-    buf.out.writeI8(foldNum)
-    buf.out.flush
-    buf.sync
+    code := in.readS8
+    if (code != checkCode) {
+      throw Err("check code error")
+    }
   }
 
   private Void write() {
@@ -87,6 +98,7 @@ class LogPosFile {
     out.writeI8(fileSize)
     out.writeI8(userData)
     out.writeI8(unused)
+    out.writeI8(checkCode)
   }
 
   override Str toStr() {
@@ -130,12 +142,8 @@ class LogPosFile {
     offset := beginFileId * this.fileSize
     this.offset -= offset
     this.fileCount -= beginFileId
-    this.foldNum = -1
-    this.flush
-
-    //commit
     this.foldNum = beginFileId
-    this.flushFoldNum
+    this.flush
 
     //open and recover
     doFold(logFile)
@@ -159,7 +167,7 @@ class LogPosFile {
       }
 
       foldNum = 0
-      flushFoldNum
+      flush
 
       close
       posFile.delete
@@ -226,8 +234,8 @@ class LogFile {
   new make(File dir, Str name) {
     this.path = dir
     this.name = name
-    if (!dir.exists) {
-      dir.create
+    if (!path.exists) {
+      path.create
     }
     posFile = LogPosFile(dir, name)
   }

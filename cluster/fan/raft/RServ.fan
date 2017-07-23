@@ -8,6 +8,7 @@
 using concurrent
 using web
 using axdbStore
+using axdbQuery
 
 class RServ : Weblet {
   private Str name
@@ -32,7 +33,7 @@ class RServ : Weblet {
     }
 
     store := StoreClient(`./raftStore`.toFile, name)
-    res := tnode.init(name, uri, isLeader, store).get
+    res := tnode.init(`./raftState`.toFile, name, uri, isLeader, store).get
     return res
   }
 
@@ -57,17 +58,17 @@ class RServ : Weblet {
       logs = [entry]
     }
 
-    futures := Future[,]
+    futures := Uri:Future[:]
     nodeState.eachOthers {
       client := RpcClient(RServ#, it)
       f := client->send_onReplicate(ae)
-      futures.add(f)
+      futures[it] = f
     }
 
-    return RKeeper.waitMajority(futures)
+    return RKeeper.waitMajority(futures, actor)
   }
 
-  Bool? addNewLog(Str log, Int type:=0) {
+  Obj?[]? addNewLog(Str log, Int type:=0) {
     node := nodeActor
     NodeSate nodeState := node.nodeSate
     if (nodeState.state != Role.leader) {
@@ -77,7 +78,7 @@ class RServ : Weblet {
 
     LogEntry? logEntry := node.addNewLog(log, type)
     if (logEntry == null) {
-      return false
+      return [,]
     }
 
     ok := sendLog(node, logEntry)
@@ -85,9 +86,13 @@ class RServ : Weblet {
       ok = sendLog(node, logEntry)
     }
     if (ok) {
-      node.commit(logEntry.id)
+      Future? res := node.commit(logEntry.id)
+      if (res == null) {
+        return [,]
+      }
+      return res.get
     }
-    return ok
+    return [,]
   }
 
   ResResult onReplicate(AppendEntry entry) {
@@ -107,6 +112,20 @@ class RServ : Weblet {
     nodeActor.onPull(term, prevLogIndex, prevLogTerm)
   }
 
+  private Engine engine() {
+    Actor.locals.getOrAdd("axdb.engine") |->Engine| {
+      Engine.makeStore(nodeActor.getStore)
+    }
+  }
+
+  Obj?[]? exeSql(Str sql) {
+    if (sql.lower.startsWith("select") ) {
+      return engine.exeSql(sql)
+    } else {
+      return addNewLog(sql)
+    }
+  }
+
   Void index() {
     res.statusCode = 200
     res.headers["Content-Type"] = "text/html; charset=utf-8"
@@ -123,8 +142,8 @@ class RServ : Weblet {
       out.p.w("commitLog: $cur.commitLog").pEnd
       out.p.w("lastLog: $cur.lastLog").pEnd
 
-      cur.members.each {
-        out.w("<p>- $it</p>")
+      cur.members.each |v,k| {
+        out.w("<p>$k: $v</p>")
       }
       out.p.w("$cur").pEnd
     } else {

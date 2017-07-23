@@ -23,7 +23,7 @@ const class NodeSate {
 
   const Role state
 
-  const Uri[] members
+  const Uri:Int members
   const Uri? leader
   const Uri? self
 
@@ -31,9 +31,9 @@ const class NodeSate {
   const Bool voteEnable
 
   Void eachOthers(|Uri| f) {
-    members.each {
-      if (it != self) {
-        f(it)
+    members.each |v,k| {
+      if (k != self) {
+        f(k)
       }
     }
   }
@@ -99,11 +99,13 @@ class RNode {
 
   Int term := 0
 
-  Uri? votedFor
+  Uri votedFor := ``
 
   Role state := Role.follower
 
-  Uri[] members := [,]
+  ** uri to matchIndex
+  Uri:Int members := [:]
+
   Uri? leader
   Uri? self
 
@@ -111,8 +113,8 @@ class RNode {
   Bool voteEnable := true
 
   RLogFile? logFile
-
-  RStore? store
+  RStoreMachine? store
+  Buf? persistBuf
 
   LogEntry? getLog(Int i) { logFile.get(i) }
 
@@ -133,6 +135,10 @@ class RNode {
     }
   }
 
+  Void setMatchIndex(Uri id, Int pos) {
+    members[id] = pos
+  }
+
   Bool changeRole(Role role) {
     this.state = role
     Uri? leader := null
@@ -145,22 +151,78 @@ class RNode {
       this.votedFor = this.self
     }
     this.leader = leader
+    save
     return true
   }
 
-  Bool init(Str name, Uri self, Bool isLeader, StoreClient store) {
+  private Int checkCode() {
+    Int c := 0
+    c = c * 31 + commitLog
+    c = c * 31 + lastApplied
+    c = c * 31 + term
+    c = c * 31 + votedFor.hash
+    return c
+  }
+
+  private Void save() {
+    out := persistBuf.out
+    out.writeI8(commitLog)
+    out.writeI8(lastApplied)
+    out.writeI8(term)
+    out.writeUtf(votedFor.toStr)
+    out.writeI8(checkCode)
+    persistBuf.sync
+  }
+
+  private Void close() {
+    save
+    persistBuf.close
+    persistBuf = null
+
+    logFile.close
+    logFile = null
+  }
+
+  private Void read() {
+    in := persistBuf.in
+    commitLog = in.readS8
+    lastApplied = in.readS8
+    term = in.readS8
+    votedFor = in.readUtf.toUri
+    code := in.readS8
+    if (code != checkCode) {
+      throw Err("check code error")
+    }
+
+    lastLog = logFile.count-1
+    lastLogTerm = logFile.get(lastLog).term
+  }
+
+  StoreClient getStore() {
+    store.store
+  }
+
+  Bool init(File path, Str name, Uri self, Bool isLeader, StoreClient store) {
     this.name = name
     this.self = self
-    this.members = [self]
+    this.members = [self:0]
 
     if (isLeader) {
       this.leader = self
       state = Role.leader
     }
 
-    this.store = RStore(store)
-    this.logFile = StoreLogFile(`./raftLog`.toFile, name)
+    this.store = RStoreMachine(store)
+    this.logFile = StoreLogFile(path, "${name}_log")
 
+    persistFile := (path + `{name}_state`)
+    exists := persistFile.exists
+    this.persistBuf = persistFile.open
+    if (exists) {
+      read
+    } else {
+      save
+    }
     echo("init $name, $self, $isLeader")
     return true
   }
@@ -199,12 +261,16 @@ class RNode {
     return true
   }
 
-  Void commit(Int logId) {
-    if (logId > this.lastLog) return
-    if (this.commitLog == logId) return
+  Future? commit(Int logId) {
+    Future? res := null
+    if (logId > this.lastLog) return res
+    if (this.commitLog == logId) return res
 
     i := this.commitLog+1
     this.commitLog = logId
+
+    save
+    logFile.flush
 
     echo("commit: ${i-1} => $logId")
     for (; i<=logId; ++i) {
@@ -212,12 +278,22 @@ class RNode {
       if (e == null) {
         echo("$i at $logFile")
       }
-      if (e.type == 1) {
-        members = e.log.split(',').map { it.toUri }
+      if (e.type == 0) {
+        res = store.apply(e)
+      }
+      else if (e.type == 1) {
+        list := e.log.split(',').map { it.toUri }
+        map := [:]
+        list.each {
+          map[it] = members.get(it, 0)
+        }
+        members = map
+
         voteEnable = true
         echo("change members: $members")
       }
     }
+    return res
   }
 
   LogEntry onPull(Int term, Int prevLogIndex, Int prevLogTerm) {
@@ -274,7 +350,7 @@ class RNode {
       return ResResult(false, this.term, this.lastLog)
     }
 
-    if (this.term == term && this.votedFor != null) {
+    if (this.term == term && this.votedFor.toStr.size > 0) {
       return ResResult(false, this.term, this.lastLog)
     }
 
@@ -283,6 +359,7 @@ class RNode {
     this.state = Role.follower
     this.term = term
     this.votedFor = candidate
+    save
     return ResResult(true, this.term, this.lastLog)
   }
 

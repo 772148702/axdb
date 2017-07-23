@@ -37,6 +37,12 @@ mixin RLogFile {
 
   ** remove range[i..-1]
   abstract Bool removeFrom(Int i)
+
+  abstract Void flush()
+
+  abstract Void close()
+
+  abstract Int count()
 }
 
 
@@ -54,6 +60,12 @@ class MemLogFile : RLogFile {
   }
 
   override Str toStr() { "$logs" }
+
+  override Void flush() {}
+
+  override Void close() {}
+
+  override Int count() { logs.size }
 }
 
 

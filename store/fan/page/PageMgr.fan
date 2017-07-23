@@ -45,6 +45,18 @@ abstract class PageMgr {
     pageSize = in.readS4
     pageCount = in.readS8
     freePage = in.readS8
+    code := in.readS8
+    if (code != checkCode) {
+      throw Err("check code error")
+    }
+  }
+
+  private Int checkCode() {
+    Int c := version
+    c = c * 31 + pageSize
+    c = c * 31 + pageCount
+    c = c * 31 + freePage
+    return c
   }
 
   private Void writeHeader(OutStream out) {
@@ -52,6 +64,7 @@ abstract class PageMgr {
     out.writeI4(pageSize)
     out.writeI8(pageCount)
     out.writeI8(freePage)
+    out.writeI8(checkCode)
   }
 
   virtual Void close() { flush }

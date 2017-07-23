@@ -114,18 +114,17 @@ const class RKeeper {
     }
   }
 
-  static Bool waitMajority(Future[] futures) {
+  static Bool waitMajority(Uri:Future futures, RNodeActor nodeActor) {
     size := futures.size
     count := 0
     if (size == 0) return true
 
     while (futures.size > 0) {
-      for (i:=0; i<futures.size; ++i) {
-        f := futures[i]
+      futures.dup.each |f, k| {
         if (!f.state.isComplete) {
-          continue
+          return
         }
-        futures.removeAt(i)
+        futures.remove(k)
 
         Str? str := f.get
         if (str != null) {
@@ -137,6 +136,7 @@ const class RKeeper {
               return true
             }
           }
+          nodeActor.setMatchIndex(k, res.lastLog)
         }
       }
       Actor.sleep(5ms)
@@ -148,15 +148,15 @@ const class RKeeper {
     changeRole(Role.candidate)
 
     node := getNode
-    futures := Future[,]
+    futures := Uri:Future[:]
     node.eachOthers {
       client := RpcClient(RServ#, it)
       //Uri candidate, Int term, Int lastLogIndex, Int lastLogTerm
       f := client->send_onVote(node.self, node.term, node.lastLog, node.lastLogTerm)
-      futures.add(f)
+      futures[node.self] = f
     }
 
-    return waitMajority(futures)
+    return waitMajority(futures, nodeActor)
   }
 
   Void pull() {

@@ -18,7 +18,7 @@ class LogPos {
 class StoreLogFile : RLogFile {
   axdbStore::LogFile logFile
 
-  private Int count {
+  override Int count {
     get { return logFile.userData }
     set { logFile.userData = it }
   }
@@ -28,11 +28,11 @@ class StoreLogFile : RLogFile {
     logFile.open
   }
 
-  Void flush() {
+  override Void flush() {
     logFile.flush
   }
 
-  Void close() {
+  override Void close() {
     logFile.close
   }
 
@@ -95,20 +95,28 @@ class StoreLogFile : RLogFile {
   }
 }
 
-const class RStore {
+const class RStoreMachine {
   const StoreClient store
+  private const Actor applyActor
 
   new make(StoreClient store) {
     this.store = store
-  }
-
-  Engine engine() {
-    Actor.locals.getOrAdd("axdb.engine") |->Engine| {
-      Engine.makeStore(store)
+    applyActor = Actor(ActorPool{maxThreads=1}) |Obj? arg->Obj?| {
+      return engine.exeSql((arg as LogEntry).log)
     }
   }
 
-  Obj?[] exeSql(Str sql) {
-    engine.exeSql(sql)
+  Void close() {
+    applyActor.pool.stop
+  }
+
+  Future apply(LogEntry log) {
+    applyActor.send(log)
+  }
+
+  private Engine engine() {
+    Actor.locals.getOrAdd("axdb.engine") |->Engine| {
+      Engine.makeStore(store)
+    }
   }
 }
