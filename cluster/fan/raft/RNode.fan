@@ -28,7 +28,6 @@ const class NodeSate {
   const Uri? self
 
   const Str name
-  const Bool voteEnable
 
   Void eachOthers(|Uri| f) {
     members.each |v,k| {
@@ -110,11 +109,16 @@ class RNode {
   Uri? self
 
   Str name := ""
-  Bool voteEnable := true
 
   RLogFile? logFile
   RStoreMachine? store
   Buf? persistBuf
+
+  static const Log log := RNode#.pod.log
+
+  override Str toStr() {
+    "term:$term, lastLog:$lastLog, commitLog:$commitLog, members:$members, leader:$leader"
+  }
 
   LogEntry? getLog(Int i) { logFile.get(i) }
 
@@ -131,7 +135,6 @@ class RNode {
       it.leader = this.leader
       it.self = this.self
       it.name = this.name
-      it.voteEnable = this.voteEnable
     }
   }
 
@@ -161,16 +164,30 @@ class RNode {
     c = c * 31 + lastApplied
     c = c * 31 + term
     c = c * 31 + votedFor.hash
+
+    members.each |v,k| {
+      c = c * 31 + k.hash
+    }
     return c
   }
 
   private Void save() {
+    persistBuf.seek(0)
     out := persistBuf.out
     out.writeI8(commitLog)
     out.writeI8(lastApplied)
     out.writeI8(term)
     out.writeUtf(votedFor.toStr)
+
+    out.writeI8(members.size)
+    members.each |v,k| {
+      out.writeUtf(k.toStr)
+    }
+
     out.writeI8(checkCode)
+    out.flush
+    log.debug("save state")
+
     persistBuf.sync
   }
 
@@ -189,6 +206,11 @@ class RNode {
     lastApplied = in.readS8
     term = in.readS8
     votedFor = in.readUtf.toUri
+    msize := in.readS8
+    msize.times {
+      members[in.readUtf.toUri] = -1
+    }
+
     code := in.readS8
     if (code != checkCode) {
       throw Err("check code error")
@@ -196,6 +218,7 @@ class RNode {
 
     lastLog = logFile.count-1
     lastLogTerm = logFile.get(lastLog).term
+    echo(this)
   }
 
   StoreClient getStore() {
@@ -205,7 +228,7 @@ class RNode {
   Bool init(File path, Str name, Uri self, Bool isLeader, StoreClient store) {
     this.name = name
     this.self = self
-    this.members = [self:0]
+    this.members = [self:-1]
 
     if (isLeader) {
       this.leader = self
@@ -215,7 +238,7 @@ class RNode {
     this.store = RStoreMachine(store)
     this.logFile = StoreLogFile(path, "${name}_log")
 
-    persistFile := (path + `{name}_state`)
+    persistFile := (path + `${name}_state`)
     exists := persistFile.exists
     this.persistBuf = persistFile.open
     if (exists) {
@@ -223,18 +246,16 @@ class RNode {
     } else {
       save
     }
-    echo("init $name, $self, $isLeader")
+    log.debug("init $name, $self, $isLeader")
     return true
   }
 
-  private Void writeLog(LogEntry log) {
-    logFile.add(log)
-    lastLog = log.id
-    lastLogTerm = log.term
-    echo("add $log.id, $logFile")
-    if (log.type == 1) {
-      voteEnable = false
-    }
+  private Void writeLog(LogEntry logEntry) {
+    log.debug("add $logEntry")
+    //Err("add write").trace
+    logFile.add(logEntry)
+    lastLog = logEntry.id
+    lastLogTerm = logEntry.term
   }
 
   //add log from client
@@ -269,10 +290,9 @@ class RNode {
     i := this.commitLog+1
     this.commitLog = logId
 
-    save
     logFile.flush
 
-    echo("commit: ${i-1} => $logId")
+    log.debug("commit: ${i-1} => $logId")
     for (; i<=logId; ++i) {
       LogEntry? e := getLog(i)
       if (e == null) {
@@ -288,11 +308,11 @@ class RNode {
           map[it] = members.get(it, 0)
         }
         members = map
-
-        voteEnable = true
         echo("change members: $members")
       }
     }
+
+    save
     return res
   }
 
@@ -366,6 +386,9 @@ class RNode {
   ResResult onReplicate(AppendEntry entry) {
     if (entry.term < this.term) {
       return ResResult(false, this.term, this.lastLog)
+    }
+    if (entry.logs.size > 0) {
+      log.debug("$entry")
     }
 
     this.aliveTime = Duration.nowTicks

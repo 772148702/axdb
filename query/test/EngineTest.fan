@@ -13,8 +13,9 @@ class EngineTest : Test {
     engine := Engine(path, name)
     executor := Executor(engine)
 
-    res := executor.exeSql("BEGIN TRANSACTION")
-    echo(res)
+    Obj? res
+    //res := executor.exeSql("BEGIN TRANSACTION")
+    //echo(res)
 
     res = executor.exeSql("CREATE TABLE User(id varchar(255) NOT NULL,name varchar(255), age int, PRIMARY KEY (id))")
     echo(res)

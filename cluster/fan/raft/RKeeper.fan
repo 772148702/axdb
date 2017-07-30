@@ -74,9 +74,7 @@ const class RKeeper {
     }
 
     if (Duration.nowTicks - node.aliveTime > 10sec.ticks) {
-       if (node.voteEnable) {
-         sendVote
-       }
+       sendVote
     }
   }
 
@@ -115,33 +113,40 @@ const class RKeeper {
   }
 
   static Bool waitMajority(Uri:Future futures, RNodeActor nodeActor) {
-    size := futures.size
-    count := 0
-    if (size == 0) return true
+    allSize := futures.size
 
+    echo("waitMajority: $allSize")
+
+    count := 0
+    if (allSize == 0) return true
+
+    success := false
     while (futures.size > 0) {
-      futures.dup.each |f, k| {
+      success = futures.dup.any |f, k| {
         if (!f.state.isComplete) {
-          return
+          return false
         }
         futures.remove(k)
 
         Str? str := f.get
+        echo("$str")
         if (str != null) {
           res := ResResult(str)
           if (res.success) {
             count++
-            //echo("vote count: $count")
-            if (count+1 > (size+1)/2) {
+            echo("vote count: $count, ${count+1} > ${(allSize+1)/2}")
+            if (count+1 > (allSize+1)/2) {
               return true
             }
           }
           nodeActor.setMatchIndex(k, res.lastLog)
         }
+        return false
       }
+      if (success) break
       Actor.sleep(5ms)
     }
-    return false
+    return success
   }
 
   private Bool requestVote() {

@@ -111,7 +111,7 @@ const class RStoreMachine {
   }
 
   Future apply(LogEntry log) {
-    applyActor.send(log)
+    applyActor.send(log.toImmutable)
   }
 
   private Engine engine() {

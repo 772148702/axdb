@@ -14,11 +14,14 @@ class Executor {
   Int? transId
   private Bool autoCommit := true
 
+  static const Log log := Executor#.pod.log
+
   new make(Engine engine) {
     this.engine = engine
   }
 
   Obj?[] exeSql(Str sql) {
+    log.debug("exeSql: $sql")
     parser := Parser(sql)
     unit := parser.parse
 

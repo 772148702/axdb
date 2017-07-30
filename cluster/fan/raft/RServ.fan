@@ -32,8 +32,8 @@ class RServ : Weblet {
       nodeMap[name] = tnode
     }
 
-    store := StoreClient(`./raftStore`.toFile, name)
-    res := tnode.init(`./raftState`.toFile, name, uri, isLeader, store).get
+    store := StoreClient(`./raftStore/`.toFile, name)
+    res := tnode.init(`./raftState/`.toFile, name, uri, isLeader, store).get
     return res
   }
 
@@ -83,6 +83,7 @@ class RServ : Weblet {
 
     ok := sendLog(node, logEntry)
     if (!ok) {
+      echo("send log fail")
       ok = sendLog(node, logEntry)
     }
     if (ok) {

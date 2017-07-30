@@ -304,11 +304,12 @@ class LogFile {
   **
   Void writeBuf(Buf buf, Int n := buf.remaining) {
     seek(posFile.length, true)
+    PageMgr.log.debug("write log $buf, $n")
 
-    if (curFileBuf.size != curFileBuf.pos) {
-      throw Err("buf is not at end: size=$curFileBuf.size != pos=$curFileBuf.pos
-                 , len=${posFile.length+posFile.offset}(${posFile.length}+${posFile.offset})")
-    }
+    //if (curFileBuf.size != curFileBuf.pos) {
+    //  throw Err("buf is not at end: size=$curFileBuf.size != pos=$curFileBuf.pos
+    //             , len=${posFile.length+posFile.offset}(${posFile.length}+${posFile.offset})")
+    //}
 
     size := n
     while (n + curFileBuf.size > posFile.fileSize) {
@@ -394,6 +395,7 @@ class LogFile {
   Bool removeFrom(Int pos) {
     dsize := posFile.length - pos
     if (dsize <= 0) return false
+    PageMgr.log.debug("remove from $pos")
 
     posFile.length -= dsize
     files := dsize / posFile.fileSize
