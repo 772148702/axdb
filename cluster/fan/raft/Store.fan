@@ -102,7 +102,7 @@ const class RStoreMachine {
   new make(StoreClient store) {
     this.store = store
     applyActor = Actor(ActorPool{maxThreads=1}) |Obj? arg->Obj?| {
-      return engine.exeSql((arg as LogEntry).log)
+      return engine.exeSql((arg as LogEntry).log).toImmutable
     }
   }
 

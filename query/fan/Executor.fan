@@ -36,7 +36,7 @@ class Executor {
 
     res := [,]
     unit.stmts.each {
-      echo("exe: $it")
+      //echo("exe: $it")
       res.add(exeStmt(it))
     }
 

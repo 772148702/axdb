@@ -25,5 +25,23 @@ class EngineTest : Test {
 
     res = executor.exeSql("select * FROM User where id='123'")
     echo(res)
+
+    res = executor.exeSql("select * FROM User where id='123'")
+    echo(res)
+  }
+
+  private Void exeSql(Str sql) {
+    engine := Engine(path, name)
+    executor := Executor(engine)
+    res := executor.exeSql(sql)
+    echo(res)
+    engine.close
+  }
+
+  Void testSql() {
+    exeSql("CREATE TABLE User(id varchar(255) NOT NULL,name varchar(255), age int, PRIMARY KEY (id))")
+    exeSql("INSERT INTO User(id, name, age) VALUES ('123','Wilson', 30)")
+    exeSql("select * FROM User where id='123'")
+    exeSql("select * FROM User where id='123'")
   }
 }

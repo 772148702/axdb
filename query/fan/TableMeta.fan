@@ -13,7 +13,7 @@ class Table {
 
   Int count := 0
   Int root := -1
-  
+
   new make(|This| f) {
     f(this)
   }
@@ -56,10 +56,19 @@ class TableMeta {
   Str:Table map := [:]
   Int version := 0
   Int flag := 0
-  
+
   @Operator
   Table? get(Str name) {
     map[name]
+  }
+
+  override Str toStr() {
+    s := StrBuf()
+    s.add("tables:")
+    map.each |v,k|{
+      s.add(k)
+    }
+    return s.toStr
   }
 
   Void read(InStream in) {
@@ -70,6 +79,7 @@ class TableMeta {
       t := Table.read(in)
       map[t.name] = t
     }
+    //echo("read $this")
   }
 
   Void write(OutStream out) {
@@ -79,5 +89,7 @@ class TableMeta {
     map.each {
       it.write(out)
     }
+
+    //echo("write $this")
   }
 }

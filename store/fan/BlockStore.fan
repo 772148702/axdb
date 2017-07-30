@@ -25,6 +25,7 @@ class BlockStore {
     buf := Buf()
     page := pageStore.getPage(transId, pageId)
     if (page == null) return null
+    page.buf.seek(0)
     buf.writeBuf(page.buf)
     firstPage := page
 

@@ -164,10 +164,7 @@ class RNode {
     c = c * 31 + lastApplied
     c = c * 31 + term
     c = c * 31 + votedFor.hash
-
-    members.each |v,k| {
-      c = c * 31 + k.hash
-    }
+    c = c * 31 + members.size.hash
     return c
   }
 

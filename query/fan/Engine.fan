@@ -49,6 +49,10 @@ class Engine {
     executor = Executor(this)
   }
 
+  Void close() {
+    store.close
+  }
+
   Obj?[] exeSql(Str sql) {
     executor.exeSql(sql)
   }
@@ -57,6 +61,7 @@ class Engine {
     transId := transact(null, TransState.begin)
     block := store.read(transId, 0)
     if (block == null) {
+      Executor.log.debug("init new database")
       block = store.create(transId)
       buf := Buf()
       tableMeta.write(buf.out)
@@ -69,6 +74,16 @@ class Engine {
       tableMeta.read(block.buf.in)
     }
     transact(transId, TransState.commit)
+  }
+
+  private Void saveTableMeta(Int transId) {
+    block := store.read(transId, 0)
+    buf := Buf()
+    tableMeta.write(buf.out)
+    buf.flip
+    store.reqWrite(transId, block.id)
+    block = block.dupWith { it.buf = buf.toImmutable  }
+    store.write(transId, block)
   }
 
   Bool createTable(Int transId, CreateStmt stmt) {
@@ -86,17 +101,24 @@ class Engine {
       it.root = btree.root.id
     }
     tableMeta.map[tab.name] = tab
+    saveTableMeta(transId)
     return true
   }
 
   Void insert(Int transId, Str table, Buf key, Buf val) {
     tab := tableMeta[table]
+    if (tab == null) {
+      throw ArgErr("table $table not found")
+    }
     btree := DbBTree(store).initRoot(transId, tab.root)
     btree.insert(transId, key, -1, val)
   }
 
   Buf? search(Int transId, Str table, Buf key) {
     tab := tableMeta[table]
+    if (tab == null) {
+      throw ArgErr("table $table not found")
+    }
     btree := DbBTree(store).initRoot(transId, tab.root)
     res := btree.search(transId, key)
     return res.val
