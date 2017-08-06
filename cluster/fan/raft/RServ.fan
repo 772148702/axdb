@@ -60,7 +60,7 @@ class RServ : Weblet {
 
     futures := Uri:Future[:]
     nodeState.eachOthers {
-      client := RpcClient(RServ#, it)
+      client := nodeActor.createClient(it)
       f := client->send_onReplicate(ae)
       futures[it] = f
     }
@@ -119,12 +119,19 @@ class RServ : Weblet {
     }
   }
 
-  Obj?[]? exeSql(Str sql) {
+  Str exeSql(Str sql) {
+    Obj?[]? res
     if (sql.lower.startsWith("select") ) {
-      return engine.exeSql(sql)
+      res = engine.exeSql(sql)
     } else {
-      return addNewLog(sql)
+      res = addNewLog(sql)
     }
+    return StrBuf() { out.writeObj(res) }.toStr
+  }
+
+  Str list() {
+    NodeSate cur := nodeActor.nodeSate
+    return StrBuf() { out.writeObj(cur.members) }.toStr
   }
 
   Void index() {

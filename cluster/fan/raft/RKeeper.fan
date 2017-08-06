@@ -7,27 +7,22 @@
 
 using concurrent
 
-const class RKeeper {
+const class RKeeper : Actor {
   private const RNodeActor nodeActor
-  private const Actor keeperActor
   private const Duration keepAliveTime := 5sec
 
-  new make(RNodeActor nodeActor) {
+  new make(RNodeActor nodeActor, ActorPool pool) : super.make(pool) {
     this.nodeActor = nodeActor
-    keeperActor = Actor(ActorPool{maxThreads=1}) |Obj? arg->Obj?| { return onKeep(arg) }
-    keeperActor.sendLater(keepAliveTime, null)
+    this.sendLater(keepAliveTime, null)
   }
 
-  private Obj? onKeep(Obj? msg) {
+  protected override Obj? receive(Obj? msg) {
      try {
       //echo("keeper actor: $msg")
       keeper := this
       if (msg == null) {
-         keeperActor.sendLater(keepAliveTime, null)
+         this.sendLater(keepAliveTime, null)
          keeper.check
-      }
-      else if (msg == "pull") {
-        keeper.pull
       }
       else if (msg == "vote") {
         keeper.vote
@@ -39,14 +34,9 @@ const class RKeeper {
     return null
   }
 
-  Void sendPull() {
-    echo("send Pull")
-    keeperActor.send("pull")
-  }
-
   Void sendVote() {
     mils := (0..1000).random
-    keeperActor.sendLater(Duration(mils*1000_000), "vote")
+    this.sendLater(Duration(mils*1000_000), "vote")
   }
 
   private NodeSate? getNode() {
@@ -57,7 +47,7 @@ const class RKeeper {
     nodeActor.changeRole(role)
   }
 
-  Void check() {
+  private Void check() {
     node := getNode
 
     if (node.self == null) {
@@ -78,7 +68,7 @@ const class RKeeper {
     }
   }
 
-  Void vote() {
+  private Void vote() {
     node := getNode
     if (Duration.nowTicks - node.aliveTime < 10sec.ticks) {
      return
@@ -86,7 +76,7 @@ const class RKeeper {
     echo("requestVote")
     if (requestVote) {
       changeRole(Role.leader)
-      client := RpcClient(RServ#, node.self)
+      client := nodeActor.createClient(node.self)
       suc := client->addNewLog("take office", 2)
       if (suc != "true") {
         changeRole(Role.follower)
@@ -107,7 +97,7 @@ const class RKeeper {
       logs = [,]
     }
     node.eachOthers {
-      client := RpcClient(RServ#, it)
+      client := nodeActor.createClient(it)
       client->send_onKeepAlive(ae)
     }
   }
@@ -155,7 +145,7 @@ const class RKeeper {
     node := getNode
     futures := Uri:Future[:]
     node.eachOthers {
-      client := RpcClient(RServ#, it)
+      client := nodeActor.createClient(it)
       //Uri candidate, Int term, Int lastLogIndex, Int lastLogTerm
       f := client->send_onVote(node.self, node.term, node.lastLog, node.lastLogTerm)
       futures[node.self] = f
@@ -163,11 +153,36 @@ const class RKeeper {
 
     return waitMajority(futures, nodeActor)
   }
+}
 
-  Void pull() {
+const class RPullActor : Actor {
+  private const RNodeActor nodeActor
+
+  new make(RNodeActor nodeActor, ActorPool pool) : super.make(pool) {
+    this.nodeActor = nodeActor
+  }
+
+  protected override Obj? receive(Obj? msg) {
+     try {
+      if (msg == "pull") {
+        this.pull
+      }
+    } catch (Err e) {
+      e.trace
+      throw e
+    }
+    return null
+  }
+
+  Void sendPull() {
+    echo("send Pull")
+    this.send("pull")
+  }
+
+  private Void pull() {
     //echo("pull *******")
-    node := getNode
-    client := RpcClient(RServ#, node.leader)
+    node := nodeActor.nodeSate
+    client := nodeActor.createClient(node.leader)
     Str? res := client->onPull(node.term, node.lastLog, node.lastLogTerm)
     echo("pull receive $res")
     if (res == null) return

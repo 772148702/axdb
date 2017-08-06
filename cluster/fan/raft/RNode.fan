@@ -88,7 +88,7 @@ const class ResResult {
 }
 
 class RNode {
-  RNodeActor? actor
+  RNodeActor actor
 
   Int aliveTime := Duration.nowTicks
   Int commitLog := -1
@@ -115,6 +115,10 @@ class RNode {
   Buf? persistBuf
 
   static const Log log := RNode#.pod.log
+
+  new make(RNodeActor actor) {
+    this.actor = actor
+  }
 
   override Str toStr() {
     "term:$term, lastLog:$lastLog, commitLog:$commitLog, members:$members, leader:$leader"
@@ -232,7 +236,7 @@ class RNode {
       state = Role.leader
     }
 
-    this.store = RStoreMachine(store)
+    this.store = RStoreMachine(store, actor.keepPool, actor)
     this.logFile = StoreLogFile(path, "${name}_log")
 
     persistFile := (path + `${name}_state`)
@@ -277,6 +281,13 @@ class RNode {
 
     writeLog(log)
     return true
+  }
+
+  Void setLastApplied(Int logId) {
+    if (logId > lastApplied) {
+      lastApplied = logId
+      save
+    }
   }
 
   Future? commit(Int logId) {

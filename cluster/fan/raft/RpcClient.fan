@@ -8,12 +8,11 @@
 using concurrent
 using web
 
-class RpcClient {
-  Uri uri
-  static const Actor actor := WebActor()
-  private Type type
+const class RpcClient : Actor {
+  const Uri uri
+  private const Type type
 
-  new make(Type refType, Uri u) {
+  new make(Type refType, Uri u, ActorPool pool) : super.make(pool) {
     type = refType
     uri = u.plusSlash
   }
@@ -33,9 +32,12 @@ class RpcClient {
     echo("req: $reqUri")
 
     if (!async) {
-      return actor.send(reqUri)
+      return this.send(reqUri)
     }
-    Uri uri := reqUri
+    return request(reqUri)
+  }
+
+  private Str request(Uri uri) {
     Obj? res := null
     WebClient? c
     try {
@@ -49,27 +51,14 @@ class RpcClient {
 
     return res
   }
-}
 
-const class WebActor : Actor {
-  new make() : super(ActorPool{}) {
-  }
   protected override Obj? receive(Obj? msg) {
     //echo("send: $msg")
     Uri uri := msg
-    Obj? res := null
-    WebClient? c
-    try {
-      c = WebClient(uri)
-      c.socketOptions { connectTimeout = 8sec; receiveTimeout = 8sec }
-      res = c.getStr
-    } catch (Err e) {
-      echo("request err: $e.msg")
-    }
-    finally c?.close
-
-    echo("response: $res")
+    Obj? res := request(uri)
+    //echo("response: $res")
     return res
   }
 }
+
 

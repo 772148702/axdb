@@ -13,13 +13,20 @@ const class RNodeActor : Actor {
   private static const Str key := "axdb.RStateActor."
 
   private const RKeeper keeper
+  private const RPullActor puller
+  const ActorPool keepPool := ActorPool()
 
   new make() : super(ActorPool{maxThreads=1}) {
-    keeper = RKeeper(this)
+    keeper = RKeeper(this, keepPool)
+    puller = RPullActor(this, keepPool)
   }
 
   Void sendPull() {
-    keeper.sendPull
+    puller.sendPull
+  }
+
+  RpcClient createClient(Uri uri) {
+    RpcClient(RServ#, uri, keepPool)
   }
 
   protected override Obj? receive(Obj? msg) {
@@ -30,7 +37,7 @@ const class RNodeActor : Actor {
     //echo("receive $msg")
 
     try {
-      node := locals.getOrAdd(key) |->RNode| { RNode { actor = this } }
+      node := locals.getOrAdd(key) |->RNode| { RNode(this) }
       return node.trap(method, args)
     } catch (Err e) {
       e.trace
@@ -96,6 +103,10 @@ const class RNodeActor : Actor {
 
   Future? commit(Int logId) {
     this.send(["commit", [logId].toImmutable].toImmutable).get
+  }
+
+  Void setLastApplied(Int logId) {
+    this.send(["setLastApplied", [logId].toImmutable].toImmutable)
   }
 
   Bool addLogEntry(Int prevLogIndex, Int prevLogTerm, LogEntry le) {

@@ -95,23 +95,27 @@ class StoreLogFile : RLogFile {
   }
 }
 
-const class RStoreMachine {
+const class RStoreMachine : Actor{
   const StoreClient store
-  private const Actor applyActor
+  private const RNodeActor nodeActor
 
-  new make(StoreClient store) {
+  new make(StoreClient store, ActorPool pool, RNodeActor nodeActor) : super.make(pool) {
     this.store = store
-    applyActor = Actor(ActorPool{maxThreads=1}) |Obj? arg->Obj?| {
-      return engine.exeSql((arg as LogEntry).log).toImmutable
-    }
+    this.nodeActor = nodeActor
+  }
+
+  protected override Obj? receive(Obj? msg) {
+    LogEntry e := msg
+    res := engine.exeSql(e.log)
+    nodeActor.setLastApplied(e.id)
+    return null
   }
 
   Void close() {
-    applyActor.pool.stop
   }
 
   Future apply(LogEntry log) {
-    applyActor.send(log.toImmutable)
+    this.send(log.toImmutable)
   }
 
   private Engine engine() {
