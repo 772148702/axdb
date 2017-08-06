@@ -20,7 +20,7 @@ class Session {
   Int firstFree := Page.invalidId
   Int lastFree := Page.invalidId
   Int lastTime := 0
-  
+
   TransState state := TransState.begin
 }
 
@@ -33,6 +33,7 @@ class TransPageMgr : LogPageMgr {
   [Int:Int] lockMap := [:]
 
   private Int[]? checkPointTrans
+  Int lastTrans := -1
 
   new make(File path, Str name) : super(path, name) {
   }
@@ -127,9 +128,15 @@ class TransPageMgr : LogPageMgr {
     updatePage(transId, last)
   }
 
-  Void begin(Int transId) {
+  Int begin(Int? transId) {
+    if (transId != null) {
+      transId = lastTrans
+    } else {
+      transId = ++lastTrans
+    }
     logger.begin(transId)
     sessionMap[transId] = Session()
+    return transId
   }
 
   Void rollback(Int transId) {
@@ -171,6 +178,7 @@ class TransPageMgr : LogPageMgr {
     releaseLock(transId)
     sessionMap.remove(transId)
     checkCheckPoint
+    logger.flush
   }
 
   Void commit(Int transId) {

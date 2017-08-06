@@ -160,6 +160,19 @@ abstract class BTree {
     root.dump(transId, this)
   }
 
+  Void visitNode(Int transId, |Int nodeId| f, RBNode node := root) {
+    if (node.leaf) {
+      f(node.id)
+      return
+    }
+    for (i:=0; i<node.size-1; ++i) {
+      ptr := node.getPointer(i)
+      node = getNode(transId, ptr)
+      visitNode(transId, f, node)
+    }
+    f(node.id)
+  }
+
   Void scan(Int transId, |Int ptr, Buf? val| f) {
     result := search(transId, Buf())
     node := result.node
@@ -176,3 +189,37 @@ abstract class BTree {
     }
   }
 }
+
+class BTreeIterator {
+  private BTree tree
+  private RBNode node
+  private Int pos
+  private Int transId
+
+  new make(BTree t, Int transId) {
+    tree = t
+    node = tree.root
+    pos = -1
+    this.transId = transId
+  }
+
+  Bool more() { pos != -2 }
+
+  Buf? next() {
+    if (pos == -2) return null
+    if (pos < (node.size-1)-1) {
+      ++pos
+      return node.getVal(pos)
+    }
+
+    ptr := node.getPointer(node.size-1)
+    if (ptr == -1) {
+      pos = -2
+      return null
+    }
+    node = tree.getNode(transId, ptr)
+    pos = 0
+    return node.getVal(pos)
+  }
+}
+

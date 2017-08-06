@@ -59,12 +59,16 @@ class Recover {
   Void redo(Int pos) {
     if (pos == -1) return
     [Int:Int] transSet := [:]
-
+    Int lastTrans := -1
     while (pos != -1) {
       //echo("redo pos: $pos")
       rec := store.logger.readLog(pos)
       if (rec == null) break
       PageMgr.log.debug("redo log:$pos $rec")
+
+      if (rec.transId > lastTrans) {
+        lastTrans = rec.transId
+      }
       readPos := store.logger.lastReadPos
       if (rec.transId != -1) {
         transSet[rec.transId] = pos
@@ -104,6 +108,8 @@ class Recover {
           store.pageCount = frec.newPageCount
       }
     }
+
+    store.lastTrans = lastTrans
 
     transSet.each |transPos,transId| {
       PageMgr.log.debug("undo uncompleted trans: $transId from: $transPos")

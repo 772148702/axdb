@@ -19,12 +19,17 @@ class BlockStore {
     lockFile.deleteOnExit
 
     pageStore = TransPageMgr(path, name)
+    pageStore.recover
+    //pageStore.logger->logFile->dump
   }
 
   private Block? read(Int transId, Int pageId) {
     buf := Buf()
     page := pageStore.getPage(transId, pageId)
-    if (page == null) return null
+    if (page == null) {
+      //echo("page $pageId, trans:$transId")
+      return null
+    }
     page.buf.seek(0)
     buf.writeBuf(page.buf)
     firstPage := page
@@ -106,10 +111,10 @@ class BlockStore {
     pageStore.deletePage(transId, page, last)
   }
 
-  Void transact(Int transId, TransState state) {
+  Int transact(Int? transId, TransState state) {
     switch (state) {
       case TransState.begin:
-        pageStore.begin(transId)
+        transId = pageStore.begin(transId)
       case TransState.prepare:
         pageStore.prepare(transId)
       case TransState.commit:
@@ -117,6 +122,7 @@ class BlockStore {
       case TransState.abort:
         pageStore.rollback(transId)
     }
+    return transId
   }
 
 //  Void sync() {

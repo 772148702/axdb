@@ -86,6 +86,9 @@ class Executor {
   }
 
   Plan? plan(SelectStmt stmt) {
+    if (stmt.cond == null) {
+      return ScanPlan { table = stmt.tables.first }
+    }
     keyExpr := stmt.cond.right as LiteralExpr
     keybuf := BufUtil.strToBuf(keyExpr.val)
     plan := IdSearchPlan {

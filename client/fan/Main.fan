@@ -15,6 +15,7 @@ class Main {
     Uri host := arg[0].toUri
     client = Client(host)
 
+    echo("axdb")
     while (true) {
       echo(">>")
 

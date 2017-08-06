@@ -73,6 +73,7 @@ class RServ : Weblet {
     NodeSate nodeState := node.nodeSate
     if (nodeState.state != Role.leader) {
       res.redirect(nodeState.leader)
+      echo("redirect ${nodeState.leader}")
       return null
     }
 
@@ -121,7 +122,9 @@ class RServ : Weblet {
 
   Str exeSql(Str sql) {
     Obj?[]? res
-    if (sql.lower.startsWith("select") ) {
+    pos := sql.index(":")
+    psql := sql[pos..-1]
+    if (psql.lower.startsWith(":select") ) {
       res = engine.exeSql(sql)
     } else {
       res = addNewLog(sql)

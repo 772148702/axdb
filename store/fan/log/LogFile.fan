@@ -378,7 +378,9 @@ class LogFile {
 
   private Bool openFile(Int fileId) {
     if (curFileId != fileId) {
-      flush
+      if (curFileId != -1) {
+        flush
+      }
       curFileBuf?.close
       file := getFile(fileId)
       curFileBuf = file.open
@@ -428,7 +430,7 @@ class LogFile {
   Void flush() {
     if (!dirty) return
 
-    PageMgr.log.debug("flush log file")
+    PageMgr.log.debug("$path $name flush log file")
 
     curFileBuf?.sync
     posFile.flush

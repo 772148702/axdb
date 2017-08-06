@@ -108,7 +108,7 @@ const class RStoreMachine : Actor{
     LogEntry e := msg
     res := engine.exeSql(e.log)
     nodeActor.setLastApplied(e.id)
-    return null
+    return res.toImmutable
   }
 
   Void close() {

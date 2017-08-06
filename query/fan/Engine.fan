@@ -53,16 +53,19 @@ class Engine {
   Obj?[] exeSql(Str sql) {
     Int? transId := null
     pos := sql.index(":")
-    p1 := sql[0..pos]
+    p1 := sql[0..<pos]
     p2 := sql[pos+1..-1]
     if (p1.size > 0) {
       transId = p1.toInt
     }
-    return Executor(this).exeSql(sql, transId)
+    res := Executor(this).exeSql(p2, transId)
+    //echo("engine$res")
+    return res
   }
 
   private Void init() {
     transId := transact(null, TransState.begin)
+    //echo("transId$transId")
     block := store.read(transId, 0)
     if (block == null) {
       Executor.log.debug("init new database")
@@ -109,6 +112,14 @@ class Engine {
     return true
   }
 
+  Bool removeTable(Int transId, DropStmt stmt) {
+    res := tableMeta.map.remove(stmt.table)
+    if (res == null) return false
+    //TODO remove tree
+    saveTableMeta(transId)
+    return true
+  }
+
   Void insert(Int transId, Str table, Buf key, Buf val) {
     tab := tableMeta[table]
     if (tab == null) {
@@ -116,6 +127,16 @@ class Engine {
     }
     btree := DbBTree(store).initRoot(transId, tab.root)
     btree.insert(transId, key, -1, val)
+  }
+
+  BTreeIterator scan(Int transId, Str table) {
+    tab := tableMeta[table]
+    if (tab == null) {
+      throw ArgErr("table $table not found")
+    }
+    btree := DbBTree(store).initRoot(transId, tab.root)
+    itr := BTreeIterator(btree, transId)
+    return itr
   }
 
   Buf? search(Int transId, Str table, Buf key) {

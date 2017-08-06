@@ -10,7 +10,7 @@
 **
 abstract class PageMgr {
   ** byte num of a page
-  Int pageSize := 1024
+  Int pageSize := 1024 * 8
   Int pageCount := 0
   Int version := 0
   internal Int freePage := Page.invalidId

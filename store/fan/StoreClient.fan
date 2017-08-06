@@ -43,7 +43,7 @@ const class StoreClient {
   private Block? doRead(Int blockId) {
     Block? b := store->send_read(Page.invalidId, blockId)->get
     if (b == null) return null
-    //echo("$b.buf")
+    //echo("doRead: $b.buf")
     return b.dupWith { it.buf = compress.uncompress(it.buf.in) }
   }
 
@@ -83,6 +83,7 @@ const class StoreClient {
   }
 
   Int transact(Int? transId, TransState state) {
+    transId = store->send_transact(transId, state)->get
     switch (state) {
       case TransState.begin:
         transId = cache.beginTrans(transId)
@@ -90,7 +91,6 @@ const class StoreClient {
       case TransState.abort:
         cache.endTrans(transId)
     }
-    store->send_transact(transId, state)
     return transId
   }
 

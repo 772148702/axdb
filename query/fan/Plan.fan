@@ -37,6 +37,23 @@ class IdSearchPlan : Plan {
   }
 }
 
+class ScanPlan : Plan {
+  Str table
+  private BTreeIterator? itr
+
+  new make(|This| f) { f(this) }
+
+  override Record? next() {
+    if (itr == null) {
+      executor.engine.scan(executor.transId, table)
+    }
+    if (!itr.more) return null
+    valbuf := itr.next
+    data := JsonInStream(valbuf.in).readJson
+    return Record { vals = data }
+  }
+}
+
 class CrossJoinPlan : Plan {
   Plan outer
   Plan inner
