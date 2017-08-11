@@ -30,7 +30,7 @@ const class StoreClient {
      if (block.versionId == Page.invalidId) {
        return block
      }
-     if (cache.hasTrans(block.transId)) {
+     if (!cache.hasTrans(block.transId)) {
        return block
      }
 
@@ -82,7 +82,7 @@ const class StoreClient {
     store->send_delete(transId, blockId)
   }
 
-  Int transact(Int? transId, TransState state) {
+  Int transact(Int transId, TransState state) {
     transId = store->send_transact(transId, state)->get
     switch (state) {
       case TransState.begin:
@@ -94,7 +94,7 @@ const class StoreClient {
     return transId
   }
 
-  Int begin(Int? transId := null) {
+  Int begin(Int transId := -1) {
     return transact(transId, TransState.begin)
   }
 

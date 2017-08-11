@@ -64,7 +64,7 @@ class Engine {
   }
 
   private Void init() {
-    transId := transact(null, TransState.begin)
+    transId := transact(-1, TransState.begin)
     //echo("transId$transId")
     block := store.read(transId, 0)
     if (block == null) {
@@ -155,7 +155,7 @@ class Engine {
     return btree.remove(transId, key)
   }
 
-  Int transact(Int? transId, TransState state) {
+  Int transact(Int transId, TransState state) {
     return store.transact(transId, state)
   }
 }

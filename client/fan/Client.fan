@@ -10,36 +10,51 @@ using web
 
 class Client {
   const Uri host
-  private Int? transId
+  private Int transId := -1
 
   new make(Uri host) {
     this.host = host.plusSlash
   }
 
   Void begin() {
-    if (transId != null) {
+    if (transId != -1) {
       rollback
     }
-    Str[]? res := exeRawSql(":begin TRANSACTION")
+    Str[]? res := exeSql("begin TRANSACTION")
     transId = res[0].toInt
   }
 
   Void commit() {
     exeSql("commit TRANSACTION")
-    transId = null
+    transId = -1
   }
 
   Void rollback() {
     exeSql("abort TRANSACTION")
-    transId = null
+    transId = -1
+  }
+
+  Void createTable(Str table) {
+    exeSql("CREATE TABLE $table(id text NOT NULL, val text, PRIMARY KEY (id))")
+  }
+
+  Void dropTable(Str table) {
+    exeSql("Drop table $table")
+  }
+
+  Void get(Str table, Str key) {
+    skey := key.replace("'", "''")
+    exeSql("select * FROM $table where id ='$skey'")
+  }
+
+  Void set(Str table, Str key, Str val) {
+    skey := key.replace("'", "''")
+    sval := val.replace("'", "''")
+    exeSql("INSERT INTO User(id, val) VALUES ('$skey','$sval')")
   }
 
   Obj? exeSql(Str sql) {
-    sql = transId != null ? "$transId:sql" : ":$sql"
-    return exeRawSql(sql)
-  }
-
-  private Obj? exeRawSql(Str sql) {
+    sql = "$transId:sql"
     uri := host + `exeSql`
     uri = uri.plusQuery(["sql" : sql])
     res := request(uri)

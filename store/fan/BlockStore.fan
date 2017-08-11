@@ -111,7 +111,7 @@ class BlockStore {
     pageStore.deletePage(transId, page, last)
   }
 
-  Int transact(Int? transId, TransState state) {
+  Int transact(Int transId, TransState state) {
     switch (state) {
       case TransState.begin:
         transId = pageStore.begin(transId)

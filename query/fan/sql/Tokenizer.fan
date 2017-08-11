@@ -194,16 +194,24 @@ internal class Tokenizer {
     while (true) {
       if (cur == -1) break
       else if (cur == '\'') {
+        //escape for double '
+        if (peek == '\'') {
+          sb.addChar('\'')
+          consume
+          consume
+          continue
+        }
         consume
         break
       }
+      /*
       else if (cur == '\\' && peek == '\'') {
         sb.addChar('\'')
         consume
         consume
         continue
       }
-
+      */
       sb.addChar(cur)
       consume
     }

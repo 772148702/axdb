@@ -11,7 +11,7 @@ using util
 class Executor {
 
   Engine engine
-  internal Int? transId
+  internal Int transId
   private Bool autoCommit := true
 
   static const Log log := Executor#.pod.log
@@ -20,18 +20,18 @@ class Executor {
     this.engine = engine
   }
 
-  Obj?[] exeSql(Str sql, Int? transId_ := null) {
+  Obj?[] exeSql(Str sql, Int transId_ := -1) {
     log.debug("exeSql: $sql")
     this.transId = transId_
     parser := Parser(sql)
     unit := parser.parse
 
-    if (transId == null) {
+    if (transId == -1) {
       if (unit.stmts.first.typeof == TransStmt#) {
         autoCommit = false
       } else {
         autoCommit = true
-        transId = engine.transact(null, TransState.begin)
+        transId = engine.transact(-1, TransState.begin)
       }
     } else {
       autoCommit = false
@@ -65,9 +65,9 @@ class Executor {
   }
 
   private Void tryCommit() {
-    if (!autoCommit || transId == null) return
+    if (!autoCommit || transId == -1) return
     engine.transact(transId, TransState.commit)
-    transId = null
+    transId = -1
   }
 
   private Obj? trans(TransStmt stmt) {
@@ -79,7 +79,7 @@ class Executor {
     if (stmt.state == TransState.begin) {
       transId = id
     } else {
-      transId = null
+      transId = -1
       autoCommit = true
     }
     return id

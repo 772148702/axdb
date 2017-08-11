@@ -128,12 +128,17 @@ class TransPageMgr : LogPageMgr {
     updatePage(transId, last)
   }
 
-  Int begin(Int? transId) {
-    if (transId != null) {
-      transId = lastTrans
+  Int begin(Int transId) {
+    if (transId != -1) {
+       lastTrans = transId
     } else {
       transId = ++lastTrans
     }
+
+    if (transId < 0) {
+      throw ArgErr("transId error: $transId")
+    }
+
     logger.begin(transId)
     sessionMap[transId] = Session()
     return transId

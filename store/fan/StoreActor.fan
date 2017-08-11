@@ -125,7 +125,7 @@ const class CacheActor : BaseActor {
     this.size = size
   }
 
-  Int beginTrans(Int? transId) {
+  Int beginTrans(Int transId) {
     this->send_beginTrans(transId)->get
   }
 
