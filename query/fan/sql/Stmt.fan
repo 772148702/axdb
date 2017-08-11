@@ -168,14 +168,11 @@ class DropStmt : Stmt {
 
 class TransStmt : Stmt {
   TransState state := TransState.begin
-  Int? transId
+  //Int transId := -1
 
   override Str toStr() {
     str := "$state transaction"
-    if (transId == null) {
-      return str
-    }
-    return "$str $transId"
+    return str
   }
 }
 

@@ -70,4 +70,15 @@ class StoreClientTest : Test {
     echo("---")
     read(0, "Update")
   }
+
+  Void testRead() {
+    write
+
+    store := StoreClient(path, name)
+    transId := -1
+    block := store.read(transId, 0)
+    str := block.buf.in.readUtf
+    verifyEq(str, "Hello")
+    store.close
+  }
 }

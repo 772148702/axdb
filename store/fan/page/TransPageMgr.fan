@@ -78,6 +78,9 @@ class TransPageMgr : LogPageMgr {
   }
 
   Bool reqWrite(Int transId, Int pageId) {
+     if (transId == -1) {
+       throw ArgErr("not begin trans")
+     }
      if (lockMap.containsKey(pageId)) {
         return lockMap[pageId] == transId
      }
@@ -87,7 +90,7 @@ class TransPageMgr : LogPageMgr {
 
   Void verifyLock(Int transId, Int pageId) {
     if (lockMap[pageId] != transId)
-      throw Err("lock error: transId=$transId, pageId=$pageId")
+      throw ArgErr("lock error: transId=$transId, pageId=$pageId")
   }
 
   override Void updatePage(Int transId, Page page, Page? old := null, Bool backup := true) {

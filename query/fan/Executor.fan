@@ -11,7 +11,7 @@ using util
 class Executor {
 
   Engine engine
-  internal Int transId
+  internal Int transId := -1
   private Bool autoCommit := true
 
   static const Log log := Executor#.pod.log
@@ -21,20 +21,20 @@ class Executor {
   }
 
   Obj?[] exeSql(Str sql, Int transId_ := -1) {
-    log.debug("exeSql: $sql")
-    this.transId = transId_
+    log.debug("exeSql: $sql transId: $transId_")
+    if (transId_ != -1) {
+      this.transId = transId_
+    }
     parser := Parser(sql)
     unit := parser.parse
 
-    if (transId == -1) {
-      if (unit.stmts.first.typeof == TransStmt#) {
-        autoCommit = false
-      } else {
-        autoCommit = true
-        transId = engine.transact(-1, TransState.begin)
-      }
-    } else {
-      autoCommit = false
+    autoCommit = false
+    if (transId == -1
+       && unit.stmts.first.typeof != TransStmt#
+       && unit.stmts.first.typeof != SelectStmt#) {
+      autoCommit = true
+      transId = engine.transact(-1, TransState.begin)
+      echo("autoCommit $transId")
     }
 
     res := [,]
@@ -75,7 +75,7 @@ class Executor {
       tryCommit
     }
 
-    id := engine.transact(stmt.transId, stmt.state)
+    id := engine.transact(transId, stmt.state)
     if (stmt.state == TransState.begin) {
       transId = id
     } else {
@@ -111,6 +111,9 @@ class Executor {
       map[stmt.fields[i]] = stmt.values[i]
     }
     tab := engine.tableMeta[stmt.table]
+    if (tab == null) {
+      throw ArgErr("table $stmt.table not found")
+    }
     key := map[tab.key]
     keybuf := BufUtil.strToBuf(key)
 

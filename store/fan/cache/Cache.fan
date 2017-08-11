@@ -67,11 +67,12 @@ class LruCache {
 
   private CacheItem? clean() {
     if (map.size <= max) return null
-    CacheItem item := list.last
+    item := list.last
     while (item != list.end) {
       pre := item.previous
-      if (item.cacheCount > 0) {
-        item.cacheCount = item.cacheCount - 1
+      CacheItem citem := item
+      if (citem.cacheCount > 0) {
+        citem.cacheCount = citem.cacheCount - 1
         item.remove
         list.insertBefore(item)
       } else {
@@ -80,10 +81,10 @@ class LruCache {
           canRemove = canRemoveItem(item.val)
         }
         if (canRemove) {
-          map.remove(item.key)
+          map.remove(citem.key)
           item.remove
           onReomove(item)
-          item.cacheCount = 0
+          citem.cacheCount = 0
           return item
         }
       }

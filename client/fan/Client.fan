@@ -42,19 +42,20 @@ class Client {
     exeSql("Drop table $table")
   }
 
-  Void get(Str table, Str key) {
+  Str get(Str table, Str key) {
     skey := key.replace("'", "''")
-    exeSql("select * FROM $table where id ='$skey'")
+    Obj[] res := exeSql("select * FROM $table where id ='$skey'")
+    return res[0]
   }
 
   Void set(Str table, Str key, Str val) {
     skey := key.replace("'", "''")
     sval := val.replace("'", "''")
-    exeSql("INSERT INTO User(id, val) VALUES ('$skey','$sval')")
+    exeSql("INSERT INTO $table(id, val) VALUES ('$skey','$sval')")
   }
 
   Obj? exeSql(Str sql) {
-    sql = "$transId:sql"
+    sql = "$transId:$sql"
     uri := host + `exeSql`
     uri = uri.plusQuery(["sql" : sql])
     res := request(uri)

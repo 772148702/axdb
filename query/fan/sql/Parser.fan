@@ -323,11 +323,7 @@ class Parser {
     }
     consume
 
-    Int? transId
-    if (cur.kind == Token.literal && cur.val != null) {
-      transId = cur.val as Int
-    }
-    trans := TransStmt { it.state = state; it.transId = transId }
+    trans := TransStmt { it.state = state }
     return trans
   }
 }

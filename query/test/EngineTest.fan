@@ -14,8 +14,8 @@ class EngineTest : Test {
     executor := Executor(engine)
 
     Obj? res
-    //res := executor.exeSql("BEGIN TRANSACTION")
-    //echo(res)
+    res = executor.exeSql("BEGIN TRANSACTION")
+    echo(res)
 
     res = executor.exeSql("CREATE TABLE User(id varchar(255) NOT NULL,name varchar(255), age int, PRIMARY KEY (id))")
     echo(res)
@@ -28,12 +28,14 @@ class EngineTest : Test {
 
     res = executor.exeSql("select * FROM User where id='123'")
     echo(res)
+
+    res = executor.exeSql("COMMIT TRANSACTION")
+    echo(res)
   }
 
   private Void exeSql(Str sql) {
     engine := Engine(path, name)
-    executor := Executor(engine)
-    res := executor.exeSql(sql)
+    res := engine.exeSql(sql)
     echo(res)
     engine.close
   }

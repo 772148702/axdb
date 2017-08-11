@@ -51,14 +51,16 @@ class Engine {
   }
 
   Obj?[] exeSql(Str sql) {
-    Int? transId := null
+    Int transId := -1
     pos := sql.index(":")
-    p1 := sql[0..<pos]
-    p2 := sql[pos+1..-1]
-    if (p1.size > 0) {
-      transId = p1.toInt
+    if (pos != null) {
+      p1 := sql[0..<pos]
+      sql = sql[pos+1..-1]
+      if (p1.size > 0) {
+        transId = p1.toInt
+      }
     }
-    res := Executor(this).exeSql(p2, transId)
+    res := Executor(this).exeSql(sql, transId)
     //echo("engine$res")
     return res
   }
@@ -113,9 +115,19 @@ class Engine {
   }
 
   Bool removeTable(Int transId, DropStmt stmt) {
+    tab := tableMeta[stmt.table]
+    if (tab == null) {
+      return false
+    }
+    btree := DbBTree(store).initRoot(transId, tab.root)
+    btree.visitNode(transId) |id| {
+      ok := store.reqWrite(transId, id)
+      if (!ok) throw Err("lock fail")
+      store.delete(transId, id)
+    }
+
     res := tableMeta.map.remove(stmt.table)
     if (res == null) return false
-    //TODO remove tree
     saveTableMeta(transId)
     return true
   }
