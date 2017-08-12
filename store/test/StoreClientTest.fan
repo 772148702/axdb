@@ -81,4 +81,27 @@ class StoreClientTest : Test {
     verifyEq(str, "Hello")
     store.close
   }
+
+  Void testWrite() {
+    store := StoreClient(path, name)
+    transId := store.begin
+    block := store.create(transId)
+    buf := Buf()
+    sb := StrBuf()
+    10000.times { sb.add("$it,") }
+    buf.writeUtf(sb.toStr)
+    buf.flip
+    //echo("$buf, $buf.toHex")
+    store.write(transId, block.dupWith{ it.buf = buf })
+    store.transact(transId, TransState.commit)
+    store.close
+
+    store = StoreClient(path, name)
+    transId = -1
+    block = store.read(transId, 0)
+    str := block.buf.in.readUtf
+    verify(str.startsWith("0,"))
+    verify(str.endsWith("9999,"))
+    store.close
+  }
 }

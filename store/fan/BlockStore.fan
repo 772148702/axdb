@@ -36,6 +36,7 @@ class BlockStore {
 
     while (page.nextPageId != Page.invalidId) {
       page = pageStore.getPage(transId, page.nextPageId)
+      page.buf.seek(0)
       buf.writeBuf(page.buf)
     }
 

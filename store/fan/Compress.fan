@@ -6,7 +6,7 @@
 //
 
 const class Compress {
-  const Int compressType := 1
+  const Int compressType := 0
   const Str? checkCode := "CRC-32"
   const Int compressLimit := 32
 
@@ -82,7 +82,7 @@ const class Compress {
     cin.close
 
     if (n != srcSize) {
-      throw Err("Error: readSize:$n != srcSize:$srcSize")
+      throw Err("Error: readSize:$n != srcSize:$srcSize, $outBuf")
     }
 
     outBuf.flip

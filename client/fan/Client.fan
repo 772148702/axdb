@@ -44,8 +44,8 @@ class Client {
 
   Str get(Str table, Str key) {
     skey := key.replace("'", "''")
-    Obj[] res := exeSql("select * FROM $table where id ='$skey'")
-    return res[0]
+    Obj[]? res := exeSql("select * FROM $table where id ='$skey'")
+    return res[0]->get("val")
   }
 
   Void set(Str table, Str key, Str val) {
