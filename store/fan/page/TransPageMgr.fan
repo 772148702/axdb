@@ -29,11 +29,12 @@ class Session {
 ** page store with transaction
 **
 class TransPageMgr : LogPageMgr {
-  [Int:Session] sessionMap := [:]
-  [Int:Int] lockMap := [:]
+  private [Int:Session] sessionMap := [:]
+  private [Int:Int] lockMap := [:]
 
   private Int[]? checkPointTrans
   Int lastTrans := -1
+  private Int transCount := 0
 
   new make(File path, Str name) : super(path, name) {
   }
@@ -142,6 +143,12 @@ class TransPageMgr : LogPageMgr {
       throw ArgErr("transId error: $transId")
     }
 
+    ++transCount
+    if (transCount > 100) {
+      startCheckPoint
+      transCount = 0
+    }
+
     logger.begin(transId)
     sessionMap[transId] = Session()
     return transId
@@ -163,7 +170,7 @@ class TransPageMgr : LogPageMgr {
     logger.startCheckPoint(checkPointTrans)
   }
 
-  Void checkCheckPoint() {
+  private Void checkCheckPoint() {
     if (checkPointTrans == null) return
 
     for (i:=0; i<checkPointTrans.size; ++i) {

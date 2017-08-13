@@ -7,8 +7,8 @@
 
 abstract class BTree {
 
-  Int maxKeySize := 1024
-  Int bufSize := 4096 + ((maxKeySize+1) * 10)
+  Int maxKeySize := 512
+  Int bufSize := (1024*16-100)
   RBNode? root { private set }
 
   new make() {

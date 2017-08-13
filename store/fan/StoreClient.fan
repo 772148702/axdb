@@ -12,7 +12,7 @@ const class StoreClient {
 
   private const CacheActor cache
   private const StoreActor store
-  private const Compress compress := Compress { compressType = 0; checkCode = null }
+  private const Compress compress := Compress { compressType = 1; checkCode = null }
 
   new make(File path, Str name) {
     cache = CacheActor(1000)
