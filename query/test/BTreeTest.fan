@@ -19,13 +19,15 @@ internal class MyTree : BTree {
 }
 
 class BTreeTest : Test, BufUtil {
-  static const Int transId := 0
+  static const Int transId := -1
 
   private static Void insert(MyTree tree, Int i) {
-    tree.insert(transId, strToBuf("key$i"), i, strToBuf("value$i"))
+    sb := StrBuf()
+    sb.add("value$i")
+    tree.insert(transId, strToBuf("key$i"), i, strToBuf(sb.toStr))
   }
 
-  static Void test() {
+  Void testScan() {
     tree := MyTree { maxKeySize = 4 }
     tree.initRoot(transId)
 
@@ -34,25 +36,56 @@ class BTreeTest : Test, BufUtil {
       list.add(it)
     }
     list.shuffle
-    echo(list)
-
-    //list := [0,2,1]
+    //echo(list)
 
     list.each {
       insert(tree, it)
     }
 
-    //tree.insert(strToBuf("key2"), 2, strToBuf("v2"))
-    //tree.insert(strToBuf("key2"), 2, strToBuf("val2"), true)
-    tree.dump(transId)
+    itr := BTreeIterator(tree, transId)
     Env.cur.out.print("scan:")
-    tree.scan(transId) |i,v| {
-      Env.cur.out.print("$i,")
+    while (itr.more) {
+      buf := itr.next
+      str := bufToStr(buf)
+      Env.cur.out.print("$str,")
     }
     Env.cur.out.print("\n")
 
-    echo("==========")
-    r := tree.search(transId, strToBuf("key2"))
-    echo("$r")
+    //tree.dump(transId)
+    /*
+    Env.cur.out.print("scan:")
+    tree.scan(transId) |i,v| {
+      str := bufToStr(v)
+      Env.cur.out.print("$i,$str")
+    }
+    Env.cur.out.print("\n")
+    */
+  }
+
+  Void testSearch() {
+    tree := MyTree{}
+    tree.initRoot(transId)
+
+    list := Int[,]
+    1000.times {
+      list.add(it)
+    }
+    list.shuffle
+    //echo(list)
+    list.each {
+      insert(tree, it)
+    }
+
+    //tree.dump(transId)
+
+    verifySearch(tree, transId, "key0", "value0")
+    verifySearch(tree, transId, "key2", "value2")
+    verifySearch(tree, transId, "key500", "value500")
+    verifySearch(tree, transId, "key999", "value999")
+  }
+
+  private Void verifySearch(MyTree tree, Int transId, Str key, Str val) {
+    r := tree.search(transId, strToBuf(key))
+    verify(bufToStr(r.val).endsWith(val))
   }
 }

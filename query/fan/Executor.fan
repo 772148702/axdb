@@ -34,7 +34,7 @@ class Executor {
        && unit.stmts.first.typeof != SelectStmt#) {
       autoCommit = true
       transId = engine.transact(-1, TransState.begin)
-      echo("autoCommit $transId")
+      //echo("autoCommit $transId")
     }
 
     res := [,]

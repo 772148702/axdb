@@ -139,6 +139,10 @@ class Engine {
     }
     btree := DbBTree(store).initRoot(transId, tab.root)
     btree.insert(transId, key, -1, val)
+    if (btree.root.id != tab.root) {
+      tab.root = btree.root.id
+      saveTableMeta(transId)
+    }
   }
 
   BTreeIterator scan(Int transId, Str table) {
@@ -164,7 +168,12 @@ class Engine {
   Bool remove(Int transId, Str table, Buf key) {
     tab := tableMeta[table]
     btree := DbBTree(store).initRoot(transId, tab.root)
-    return btree.remove(transId, key)
+    res := btree.remove(transId, key)
+    if (btree.root.id != tab.root) {
+      tab.root = btree.root.id
+      saveTableMeta(transId)
+    }
+    return res
   }
 
   Int transact(Int transId, TransState state) {

@@ -40,6 +40,8 @@ abstract class BTree {
     ibuf := node.toBuf.toImmutable
     updateBuf(transId, node.id, ibuf)
     if (asRoot || node.id == root.id) {
+      //echo("$root.id, $node.id")
+      if (root.id != 1 && node.id == 1) throw Err()
       root = RBNode(node.id, ibuf)
     }
   }
@@ -48,15 +50,20 @@ abstract class BTree {
     node := root
     BSResult? result
 
+    //echo("search: $key, $root.id")
+
     while (true) {
       tresult := node.search(key)
       tresult.parent = result
       result = tresult
 
-      if (node.leaf) return result
-      if (result.pointer == -1) return result
+      if (node.leaf) break
+      if (result.pointer == -1) break
       node = getNode(transId, result.pointer)
     }
+
+    //echo("1===: $result")
+    //this.dump(transId)
 
     return result
   }
@@ -104,7 +111,7 @@ abstract class BTree {
 
   private Bool trySplit(Int transId, BSResult path, WBNode node) {
     if (node.byteSize > bufSize || node.size >= node.maxSize) {
-      //echo("splitNode=$node.id, $node.size")
+      //echo("splitNode=$node, $node.size")
       newNode := node.split(createNode(transId))
       WBNode? parentNode
       if (path.parent != null) {
@@ -121,7 +128,7 @@ abstract class BTree {
         parentNode.set(1, newNode.greater, newNode.id)
         updateNode(transId, parentNode, true)
       }
-      //echo("$node, $parentNode, $newNode")
+      //echo("split:$node.id, parent:$parentNode.id, new:$newNode.id, root:$root.id")
       updateNode(transId, newNode)
       return true
     }
@@ -148,9 +155,11 @@ abstract class BTree {
       item.val = val
       item.pointer = address
       updateNode(transId, node)
+      //echo("update to $node.id")
       return
     }
 
+    //echo("insert to $node.id")
     node.insert(result.index, key, address, val)
     trySplit(transId, result, node)
     updateNode(transId, node)
@@ -173,6 +182,7 @@ abstract class BTree {
     f(node.id)
   }
 
+  /*
   Void scan(Int transId, |Int ptr, Buf? val| f) {
     result := search(transId, Buf())
     node := result.node
@@ -188,6 +198,7 @@ abstract class BTree {
       node = getNode(transId, ptr)
     }
   }
+  */
 }
 
 class BTreeIterator {
@@ -207,6 +218,12 @@ class BTreeIterator {
 
   Buf? next() {
     if (pos == -2) return null
+    if (pos == -1) {
+      result := tree.search(transId, Buf())
+      node = result.node
+      pos = 0
+    }
+
     if (pos < (node.size-1)-1) {
       ++pos
       return node.getVal(pos)
