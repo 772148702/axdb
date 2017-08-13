@@ -6,7 +6,7 @@
 //
 
 const class Compress {
-  const Int compressType := 0
+  const Int compressType := 1
   const Str? checkCode := "CRC-32"
   const Int compressLimit := 32
 
@@ -71,21 +71,18 @@ const class Compress {
       return null
     }
     comType := in.readS4
-    outBuf := Buf()
 
     if (checkCode != null) {
       code = in.readS8
     }
 
     cin := inCompress(in, comType)
-    n := cin.readBuf(outBuf, srcSize)
+    outBuf := cin.readBufFully(null, srcSize)
     cin.close
 
-    if (n != srcSize) {
-      throw Err("Error: readSize:$n != srcSize:$srcSize, $outBuf")
+    if (outBuf.size != srcSize) {
+      throw Err("Error: readSize:$outBuf.size != srcSize:$srcSize, $outBuf")
     }
-
-    outBuf.flip
 
     if (checkCode != null) {
       code2 := outBuf.crc(checkCode)

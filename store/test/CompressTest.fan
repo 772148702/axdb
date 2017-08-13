@@ -67,4 +67,32 @@ class CompressTest : Test {
     verify(str.endsWith("9999,"))
     verifyEq(buf.size, ubuf.size)
   }
+
+  Void testZip() {
+
+    buf := Buf()
+    sb := StrBuf()
+    1000.times { sb.add("$it,") }
+    buf.writeUtf(sb.toStr)
+    buf.flip
+
+    size := buf.size
+    echo(buf)
+
+    outBuf := Buf()
+    out := Zip.gzipOutStream(outBuf.out)
+    out.writeBuf(buf)
+
+    //out.writeUtf(sb.toStr)
+
+    out.close
+    outBuf.flip
+    //echo("$buf => $outBuf")
+
+    resBuf := Buf()
+    in := Zip.gzipInStream(outBuf.in)
+    in.readBufFully(resBuf, size)
+    verifyEq(size, resBuf.size)
+    //echo(in.readUtf)
+  }
 }
