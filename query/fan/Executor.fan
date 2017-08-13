@@ -58,6 +58,8 @@ class Executor {
         return query(p)
       case TransStmt#:
         return trans(stmt)
+      case DropStmt#:
+        return drop(stmt)
       default:
         echo("TODO $stmt")
     }
@@ -123,5 +125,9 @@ class Executor {
 
     engine.insert(transId, stmt.table, keybuf, valbuf)
     return true
+  }
+
+  private Bool drop(DropStmt stmt) {
+    return engine.removeTable(transId, stmt)
   }
 }

@@ -120,11 +120,13 @@ class Engine {
       return false
     }
     btree := DbBTree(store).initRoot(transId, tab.root)
+    //echo("------1")
     btree.visitNode(transId) |id| {
       ok := store.reqWrite(transId, id)
       if (!ok) throw Err("lock fail")
       store.delete(transId, id)
     }
+    //echo("------2")
 
     res := tableMeta.map.remove(stmt.table)
     if (res == null) return false

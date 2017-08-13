@@ -170,14 +170,17 @@ abstract class BTree {
   }
 
   Void visitNode(Int transId, |Int nodeId| f, RBNode node := root) {
+    //echo("visit $node.id")
     if (node.leaf) {
       f(node.id)
       return
     }
-    for (i:=0; i<node.size-1; ++i) {
+
+    for (i:=0; i<node.size; ++i) {
       ptr := node.getPointer(i)
-      node = getNode(transId, ptr)
-      visitNode(transId, f, node)
+      if (ptr == -1) break
+      snode := getNode(transId, ptr)
+      visitNode(transId, f, snode)
     }
     f(node.id)
   }

@@ -44,6 +44,9 @@ class TransPageMgr : LogPageMgr {
   }
 
   override Page? getPage(Int transId, Int pageId) {
+    if (pageId == -1) {
+      return null
+    }
     page := super.getPage(transId, pageId)
     if (page == null) {
       return null
@@ -75,7 +78,9 @@ class TransPageMgr : LogPageMgr {
       return page
     }
 
-    return super.createPage(transId)
+    p := super.createPage(transId)
+    //echo("create Page $p.id")
+    return p
   }
 
   Bool reqWrite(Int transId, Int pageId) {
@@ -120,6 +125,7 @@ class TransPageMgr : LogPageMgr {
 
   override Void deletePage(Int transId, Page first, Page last := first) {
     ses := sessionMap[transId]
+    //echo("delete Page $first.id")
 
     if (ses.firstFree == Page.invalidId) {
       ses.firstFree = first.id

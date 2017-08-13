@@ -41,6 +41,7 @@ const class StoreClient {
   }
 
   private Block? doRead(Int blockId) {
+    if (blockId == -1) throw Err("invalid blockId: $blockId")
     Block? b := store->send_read(Page.invalidId, blockId)->get
     if (b == null) return null
     //echo("doRead: $b.buf")
@@ -75,10 +76,12 @@ const class StoreClient {
     id := store->send_create(transId)->get
     block := Block(id, Buf(), transId, Page.invalidId)
     cache.setCache(transId, block)
+    //echo("create $block.id")
     return block
   }
 
   Void delete(Int transId, Int blockId) {
+    //echo("delete $blockId")
     store->send_delete(transId, blockId)
   }
 

@@ -45,6 +45,7 @@ class EngineTest : Test {
     exeSql("INSERT INTO User(id, name, age) VALUES ('123','Wilson', 30)")
     exeSql("select * FROM User where id='123'")
     exeSql("select * FROM User where id='123'")
+    exeSql("drop table User")
   }
 
   Void testData() {
@@ -58,6 +59,8 @@ class EngineTest : Test {
     res := executor.exeSql("select * FROM User where id='99'")
     echo(res)
     res = executor.exeSql("select * FROM User where id='299'")
+    echo(res)
+    res = executor.exeSql("drop table User")
     echo(res)
   }
 }

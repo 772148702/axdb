@@ -57,6 +57,9 @@ class BlockStore {
     pageStore.verifyLock(transId, blockId)
 
     oldPage := pageStore.getPage(transId, blockId)
+    if (oldPage == null) {
+      throw ArgErr("not found block $blockId")
+    }
     newPage := Page.makeDup(oldPage)
     buf.seek(0)
 
