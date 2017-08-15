@@ -34,7 +34,7 @@ class LogPosFile {
   Int fileCount := 1
 
   ** size file per
-  Int fileSize := 1024 * 1024 * 1024
+  Int fileSize := 10 * 1024 * 1024
 
   Int userData := 0
 
@@ -152,7 +152,7 @@ class LogPosFile {
 
   private Void doFold(LogFile logFile) {
     if (foldNum > 0) {
-      PageMgr.log.debug("start recover:foldNum=$foldNum,fileCount=$fileCount")
+      PageMgr.log.debug("start fold:foldNum=$foldNum,fileCount=$fileCount")
 
       for (i := 0; i<fileCount; ++i) {
         f := logFile.getFile(i)
@@ -411,7 +411,7 @@ class LogFile {
   **
   Bool trim(Int pos) {
     if (pin) return false
-    PageMgr.log.debug("trim:$pos")
+    PageMgr.log.debug("trim:$pos, $posFile")
 
     posFile.offset += pos
     posFile.globalPos += pos

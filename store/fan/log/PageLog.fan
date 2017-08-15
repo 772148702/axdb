@@ -65,11 +65,11 @@ class PLog {
     logFile.writeBufObj(buf)
 
     log.debug("pos:${pos}..$curPos, log:$r")
-    checkPointPos = -1
 
     logFile.checkPoint = pos
     flush
     logFile.trim(checkPointPos)
+    checkPointPos = -1
   }
 
   private Void finishTrans(Int transId) {

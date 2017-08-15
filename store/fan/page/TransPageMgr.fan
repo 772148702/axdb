@@ -47,6 +47,14 @@ class TransPageMgr : LogPageMgr {
     if (pageId == -1) {
       return null
     }
+
+    if (transId >= 0) {
+      ses := sessionMap[transId]
+      if (ses != null) {
+        ses.lastTime = Duration.nowTicks
+      }
+    }
+
     page := super.getPage(transId, pageId)
     if (page == null) {
       return null
@@ -77,6 +85,7 @@ class TransPageMgr : LogPageMgr {
       updatePage(transId, page)
       return page
     }
+    ses.lastTime = Duration.nowTicks
 
     p := super.createPage(transId)
     //echo("create Page $p.id")
@@ -156,7 +165,7 @@ class TransPageMgr : LogPageMgr {
     }
 
     logger.begin(transId)
-    sessionMap[transId] = Session()
+    sessionMap[transId] = Session { lastTime = Duration.nowTicks }
     return transId
   }
 
@@ -179,8 +188,16 @@ class TransPageMgr : LogPageMgr {
   private Void checkCheckPoint() {
     if (checkPointTrans == null) return
 
+    timeout := Int[,]
     for (i:=0; i<checkPointTrans.size; ++i) {
-      if (sessionMap.containsKey(checkPointTrans[i])) return
+      trans := checkPointTrans[i]
+      if (sessionMap.containsKey(trans)) {
+        //echo("unfinished $checkPointTrans[i]")
+        if (Duration.nowTicks - sessionMap[trans].lastTime > 10sec.ticks) {
+          timeout.add(trans)
+        }
+        return
+      }
       checkPointTrans.removeAt(i)
       --i
     }
@@ -188,6 +205,9 @@ class TransPageMgr : LogPageMgr {
     flush
     logger.endCheckPoint(sessionMap.keys)
     checkPointTrans = null
+    timeout.each {
+      rollback(it)
+    }
   }
 
   Void recover() {
@@ -196,9 +216,11 @@ class TransPageMgr : LogPageMgr {
   }
 
   private Void finishTrans(Int transId) {
+    if (transId == -1) {
+      throw ArgErr("invalid transId")
+    }
     releaseLock(transId)
     sessionMap.remove(transId)
-    checkCheckPoint
     logger.flush
   }
 
@@ -212,6 +234,8 @@ class TransPageMgr : LogPageMgr {
     logger.commit(transId)
     ses.state = TransState.commit
     finishTrans(transId)
+
+    checkCheckPoint
   }
 
   private Void releaseLock(Int transId) {
