@@ -7,9 +7,11 @@
 
 abstract class BTree {
 
-  Int maxKeySize := 512
+  Int maxKeySize := 256
   Int bufSize := (1024*16-100)
   RBNode? root { private set }
+
+  private static const Log log := Log.get("axdbQuery.BTree")
 
   new make() {
   }
@@ -128,7 +130,7 @@ abstract class BTree {
         parentNode.set(1, newNode.greater, newNode.id)
         updateNode(transId, parentNode, true)
       }
-      //echo("split:$node.id, parent:$parentNode.id, new:$newNode.id, root:$root.id")
+      log.debug("bytes:${node.byteSize} size:$node.size; split:$node.id, parent:$parentNode.id, new:$newNode.id, root:$root.id")
       updateNode(transId, newNode)
       return true
     }

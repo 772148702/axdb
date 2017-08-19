@@ -8,13 +8,15 @@
 class Recover {
   TransPageMgr store
 
+  private static const Log log := Recover#.pod.log
+
   new make(TransPageMgr s) {
     store = s
   }
 
   Void undo(Int transId) {
     store.logger.flush
-    PageMgr.log.debug("undo trans: $transId")
+    log.debug("undo trans: $transId")
 
     pos := store.logger.getTransTail(transId)
     if (pos == -1) return
@@ -25,7 +27,7 @@ class Recover {
     PLogRec? rec := null
     while (pos >= 0) {
       rec = store.logger.readLog(pos)
-      PageMgr.log.debug("undo log:$pos $rec")
+      log.debug("undo log:$pos $rec")
       if (rec == null) break
 
       switch (rec.type) {
@@ -64,7 +66,7 @@ class Recover {
       //echo("redo pos: $pos")
       rec := store.logger.readLog(pos)
       if (rec == null) break
-      PageMgr.log.debug("redo log:$pos $rec")
+      log.debug("redo log:$pos $rec")
 
       if (rec.transId > lastTrans) {
         lastTrans = rec.transId
@@ -112,7 +114,7 @@ class Recover {
     store.lastTrans = lastTrans
 
     transSet.each |transPos,transId| {
-      PageMgr.log.debug("undo uncompleted trans: $transId from: $transPos")
+      log.debug("undo uncompleted trans: $transId from: $transPos")
       undoFrom(transPos)
       p := store.logger.abortTransOffline(transId, transPos)
     }

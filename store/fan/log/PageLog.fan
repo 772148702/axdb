@@ -8,7 +8,8 @@
 class PLog {
   private LogFile logFile
   private [Int:Int] lastTransPos := [:]
-  private Log log := Log.get("plog")
+
+  private static const Log log := PLog#.pod.log
 
   private Int checkPointPos := -1
 

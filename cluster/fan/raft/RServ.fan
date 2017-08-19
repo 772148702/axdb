@@ -32,8 +32,8 @@ class RServ : Weblet {
       nodeMap[name] = tnode
     }
 
-    store := StoreClient(`./raftStore/`.toFile, name)
-    res := tnode.init(`./raftState/`.toFile, name, uri, isLeader, store).get
+    store := StoreClient(`./store/`.toFile, name)
+    res := tnode.init(`./state/`.toFile, name, uri, isLeader, store).get
     return res
   }
 

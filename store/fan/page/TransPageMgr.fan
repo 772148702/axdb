@@ -159,7 +159,7 @@ class TransPageMgr : LogPageMgr {
     }
 
     ++transCount
-    if (transCount > 100) {
+    if (transCount > 1000) {
       startCheckPoint
       transCount = 0
     }

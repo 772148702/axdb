@@ -8,6 +8,7 @@
 class BlockStore {
   TransPageMgr pageStore
   private const File lockFile
+  //private static const Log log := BlockStore#.pod.log
 
   new make(File path, Str name) {
     lockFile = path + `${name}.lck`

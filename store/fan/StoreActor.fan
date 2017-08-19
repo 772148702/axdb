@@ -17,7 +17,7 @@ abstract const class BaseActor : Actor {
     Str name := arg[0]
     Obj?[]? args := arg[1]
 
-    PageMgr.log.debug("receive $msg")
+    //log.debug("receive $msg")
 
     try {
       return trap(name, args)
@@ -56,7 +56,7 @@ const class StoreActor : BaseActor {
     Str name := arg[0]
     Obj?[]? args := arg[1]
 
-    PageMgr.log.debug("receive $msg")
+    //log.debug("receive $msg")
 
     try {
       return store.trap(name, args)

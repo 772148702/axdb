@@ -152,7 +152,7 @@ class LogPosFile {
 
   private Void doFold(LogFile logFile) {
     if (foldNum > 0) {
-      PageMgr.log.debug("start fold:foldNum=$foldNum,fileCount=$fileCount")
+      LogFile.log.debug("start fold:foldNum=$foldNum,fileCount=$fileCount")
 
       for (i := 0; i<fileCount; ++i) {
         f := logFile.getFile(i)
@@ -213,6 +213,8 @@ class LogFile {
 
   private Bool dirty := true
   private Compress compress := Compress{}
+
+  internal static const Log log := Log.get("axdbStore.LogFile")
 
   Int fileSize {
     get { posFile.fileSize }
@@ -304,7 +306,7 @@ class LogFile {
   **
   Void writeBuf(Buf buf, Int n := buf.remaining) {
     seek(posFile.length, true)
-    PageMgr.log.debug("write log $buf, $n")
+    log.debug("write log $buf, $n")
 
     //if (curFileBuf.size != curFileBuf.pos) {
     //  throw Err("buf is not at end: size=$curFileBuf.size != pos=$curFileBuf.pos
@@ -397,7 +399,7 @@ class LogFile {
   Bool removeFrom(Int pos) {
     dsize := posFile.length - pos
     if (dsize <= 0) return false
-    PageMgr.log.debug("remove from $pos")
+    log.debug("remove from $pos")
 
     posFile.length -= dsize
     files := dsize / posFile.fileSize
@@ -411,7 +413,7 @@ class LogFile {
   **
   Bool trim(Int pos) {
     if (pin) return false
-    PageMgr.log.debug("trim:$pos, $posFile")
+    log.debug("trim:$pos, $posFile")
 
     posFile.offset += pos
     posFile.globalPos += pos
@@ -430,7 +432,7 @@ class LogFile {
   Void flush() {
     if (!dirty) return
 
-    PageMgr.log.debug("$path $name flush log file")
+    log.debug("$path $name flush log file")
 
     curFileBuf?.sync
     posFile.flush

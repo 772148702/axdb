@@ -26,5 +26,11 @@ class ClientTest : Test {
     }
     res := c.get(tab, "1")
     verifyEq(res, "value-1")
+
+    res = c.get(tab, "999")
+    verifyEq(res, "value-999")
+
+    //c.dropTable(tab)
   }
+
 }

@@ -17,7 +17,7 @@ abstract class PageMgr {
 
   static const Int headerSize := 100
 
-  static const Log log := PageMgr#.pod.log
+  protected static const Log log := Log.get("axdbStore.PageMgr")
 
   Str name := ""
 
@@ -119,6 +119,7 @@ abstract class PageMgr {
       log.debug("pageId error: $pageId >= $pageCount")
       return null
     }
+    log.debug("loadPage $pageId")
     in := storeIn(pageId)
     if (in == null) {
       return null
@@ -210,6 +211,7 @@ abstract class BufferedPageMgr : PageMgr {
   override Void flush() {
     beforeFlush
     log.debug("flush all buffer")
+
     cache.each |Page p| {
       //echo("will flushPage")
       flushPage(p)
