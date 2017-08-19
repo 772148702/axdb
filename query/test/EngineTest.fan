@@ -45,6 +45,8 @@ class EngineTest : Test {
     exeSql("INSERT INTO User(id, name, age) VALUES ('123','Wilson', 30)")
     exeSql("select * FROM User where id='123'")
     exeSql("select * FROM User where id='123'")
+    exeSql("DELETE FROM User WHERE id = '123'")
+    exeSql("select * FROM User where id='123'")
     exeSql("drop table User")
   }
 

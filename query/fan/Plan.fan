@@ -29,6 +29,7 @@ class IdSearchPlan : Plan {
   override Record? next() {
     if (pos == 0) {
       valbuf := executor.engine.search(executor.transId, table, key)
+      if (valbuf == null) return null
       data := JsonInStream(valbuf.in).readJson
       ++pos
       return Record { vals = data }

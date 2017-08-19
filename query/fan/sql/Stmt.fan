@@ -134,7 +134,7 @@ class UpdateStmt : Stmt {
 
 class DeleteStmt : Stmt {
   Str table := ""
-  Expr? cond
+  BinaryExpr? cond
 
   override Str toStr() {
     s := "delete from $table"

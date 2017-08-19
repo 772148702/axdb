@@ -60,6 +60,8 @@ class Executor {
         return trans(stmt)
       case DropStmt#:
         return drop(stmt)
+      case DeleteStmt#:
+        return delete(stmt)
       default:
         echo("TODO $stmt")
     }
@@ -129,5 +131,11 @@ class Executor {
 
   private Bool drop(DropStmt stmt) {
     return engine.removeTable(transId, stmt)
+  }
+
+  private Bool delete(DeleteStmt stmt) {
+    keyExpr := stmt.cond.right as LiteralExpr
+    keybuf := BufUtil.strToBuf(keyExpr.val)
+    return engine.delete(transId, stmt.table, keybuf)
   }
 }

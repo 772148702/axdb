@@ -167,7 +167,7 @@ class Engine {
     return res.val
   }
 
-  Bool remove(Int transId, Str table, Buf key) {
+  Bool delete(Int transId, Str table, Buf key) {
     tab := tableMeta[table]
     btree := DbBTree(store).initRoot(transId, tab.root)
     res := btree.remove(transId, key)

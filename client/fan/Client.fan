@@ -42,6 +42,12 @@ class Client {
     exeSql("Drop table $table")
   }
 
+  Void remove(Str table, Str key) {
+    skey := key.replace("'", "''")
+    Obj[]? res := exeSql("DELETE FROM $table WHERE id = '$skey'")
+    echo(res)
+  }
+
   Str get(Str table, Str key) {
     skey := key.replace("'", "''")
     Obj[]? res := exeSql("select * FROM $table where id ='$skey'")

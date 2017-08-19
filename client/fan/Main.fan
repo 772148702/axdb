@@ -21,8 +21,14 @@ class Main {
 
       line := Env.cur.in.readLine
       if (line == null || line == "exit") break
-      res := client.exeSql(line)
-      echo(res)
+
+      try {
+        res := client.exeSql(line)
+        echo(res)
+      }
+      catch (Err e) {
+        e.trace
+      }
     }
   }
 }
