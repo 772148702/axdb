@@ -47,4 +47,14 @@ class FilePageTest : Test {
     write
     read
   }
+
+  Void testEmpty() { 
+    store := FilePageMgr(path, name)
+    page := store.createPage(0)
+    page2 := store.getPage(0, 0)
+
+    verifyEq(page.buf.size, page2.buf.size)
+    verifyEq(page.buf.pos, page2.buf.pos)
+    verifyEq(page.id, page2.id)
+  }
 }

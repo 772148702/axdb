@@ -45,6 +45,7 @@ const class StoreClient {
     Block? b := store->send_read(Page.invalidId, blockId)->get
     if (b == null) return null
     //echo("doRead: $b.buf")
+    if (b.buf.size == 0) return b
     return b.dupWith { it.buf = compress.uncompress(it.buf.in) }
   }
 

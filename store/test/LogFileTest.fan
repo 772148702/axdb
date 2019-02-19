@@ -91,4 +91,44 @@ class LogFileTest : Test {
     log.close
   }
 
+
+  private Void testSeek() {
+    log := LogFile(path, name)
+    log.fileSize = 64
+    log.open
+
+    buf := Buf()
+    buf.size = 32
+    log.writeBuf(buf)
+
+    log.dump
+    echo("lastPos:$log.length")
+    verifyEq(log.length, 32)
+    verifyEq(log.fileCount, 1)
+
+    //read
+    buf.seek(0)
+    log.readBuf(0, buf, 32)
+    log.dump
+    echo("lastPos:$log.length")
+    verifyEq(log.length, 32)
+    verifyEq(log.fileCount, 1)
+
+    buf.seek(0)
+    buf.size = 32
+    log.writeBuf(buf)
+    log.dump
+    echo("lastPos:$log.length")
+    verifyEq(log.length, 64)
+    verifyEq(log.fileCount, 1)
+
+    buf.seek(0)
+    log.writeBuf(buf)
+    log.dump
+    echo("lastPos:$log.length")
+    verifyEq(log.length, 96)
+    verifyEq(log.fileCount, 2)
+
+    log.close
+  }
 }

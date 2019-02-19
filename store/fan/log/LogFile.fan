@@ -314,8 +314,8 @@ class LogFile {
     //}
 
     size := n
-    while (n + curFileBuf.size > posFile.fileSize) {
-      s := posFile.fileSize - curFileBuf.size
+    while (n + curFileBuf.pos > posFile.fileSize) {
+      s := posFile.fileSize - curFileBuf.pos
       curFileBuf.writeBuf(buf, s)
       n = n - s
       newFile

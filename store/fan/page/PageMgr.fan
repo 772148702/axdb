@@ -115,15 +115,16 @@ abstract class PageMgr {
   }
 
   protected virtual Page? loadPage(Int pageId) {
-    if (pageId != 0 && pageId >= pageCount) {
-      log.debug("pageId error: $pageId >= $pageCount")
+    if (pageId >= pageCount) {
+      if (pageId != 0) log.debug("pageId error: $pageId >= $pageCount")
       return null
     }
     log.debug("loadPage $pageId")
     in := storeIn(pageId)
-    if (in == null) {
-      return null
-    }
+    
+    //if (in == null) {
+    //  return null
+    //}
 
     return Page(this.pageSize, pageId, in)
   }
